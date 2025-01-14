@@ -1,0 +1,15 @@
+namespace Game;
+
+table State {
+    players: [Player];
+    admin: uint32;
+}
+
+table Player {
+    id: uint32;
+    name: string;
+    score: uint32;
+    connected: bool;
+}
+
+root_type State;

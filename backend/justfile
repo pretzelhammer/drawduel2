@@ -1,0 +1,43 @@
+# list commands
+default:
+    @just --list
+
+# list commands
+list:
+    @just --list
+
+fb-rs:
+    cargo run --example flatbuffers
+
+fb-ts:
+    ./node_modules/.bin/tsx ./examples/flatbuffers/main.ts
+
+fb-2-rs:
+    cargo run --example flatbuffers-2
+
+fb-2-ts:
+    ./node_modules/.bin/tsx ./examples/flatbuffers-2/main.ts
+
+proto-rs:
+    cargo run --example protobufs
+
+proto-ts:
+    ./node_modules/.bin/tsx ./examples/protobufs/main.ts
+
+axum-ws-rs:
+    cargo run --example axum-ws
+
+axum-ws-ts:
+    ./node_modules/.bin/tsx ./examples/axum-ws/main.ts
+
+axum-ws-2-rs:
+    cargo run --example axum-ws-2
+
+axum-ws-2-ts:
+    ./node_modules/.bin/tsx ./examples/axum-ws-2/main.ts
+
+axum-ws-3-rs:
+    cargo run --example axum-ws-3
+
+axum-ws-3-ts:
+    ./node_modules/.bin/tsx ./examples/axum-ws-3/main.ts

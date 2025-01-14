@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package game;
+
+// GAME STATE
+
+message GameState {
+    map<uint32, Player> players = 1;
+    uint32 admin = 2;
+}
+
+message Player {
+    string name = 2;
+    uint32 score = 3;
+    bool connected = 4;
+    bool ready = 5;
+}
+
+// EVENTS SERVER CAN SEND
+
+message ServerEventSetGameState {
+    uint32 player_id = 1;
+    GameState game_state = 2;
+}
+
+enum ErrorType {
+    UNKNOWN = 0;
+    ALREADY_CONNECTED = 1;
+    FULL_GAME = 2;
+}
+
+message ServerEventError {
+    ErrorType type = 1;
+    string message = 2;
+}
+
+message ServerEventPlayerJoin {
+    uint32 id = 1;
+    string name = 2;
+}
+
+message ServerEventPlayerConnect {
+    uint32 id = 1;
+}
+
+message ServerEventPlayerLeave {
+    uint32 id = 1;
+}
+
+message ServerEventPlayerDisconnect {
+    uint32 id = 1;
+}
+
+message ServerEventPlayerRename {
+    uint32 id = 1;
+    string name = 2;
+}
+
+message ServerEventPlayerIncreaseScore {
+    uint32 id = 1;
+    uint32 score = 2;
+}
+
+message ServerEvent {
+    oneof type {
+        ServerEventPlayerJoin player_join = 1;
+        ServerEventPlayerLeave player_leave = 2;
+        ServerEventPlayerRename player_rename = 3;
+        ServerEventPlayerIncreaseScore player_increase_score = 4;
+        ServerEventSetGameState set_game_state = 5;
+        ServerEventError error = 6;
+        ServerEventPlayerConnect player_connect = 7;
+        ServerEventPlayerDisconnect player_disconnect = 8;
+    }
+}
+
+message ServerEvents {
+    repeated ServerEvent events = 1;
+}
+
+// EVENTS PLAYERS CAN SEND
+
+message PlayerEventRename {
+    string name = 1;
+}
+
+message PlayerEventIncreaseScore {
+    uint32 score = 1;
+}
+
+message PlayerEvent {
+    oneof type {
+        PlayerEventRename rename = 1;
+        PlayerEventIncreaseScore increase_score = 2;
+    }
+}

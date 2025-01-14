@@ -1,0 +1,37 @@
+namespace ServerEvent;
+
+table PlayerJoin {
+    id: ushort;
+    name: string;
+}
+
+table PlayerLeave {
+    id: ushort;
+}
+
+table PlayerRename {
+    id: ushort;
+    name: string;
+}
+
+table PlayerIncreaseScore {
+    id: ushort;
+    score: ushort;
+}
+
+union EventUnion {
+    PlayerJoin,
+    PlayerLeave,
+    PlayerRename,
+    PlayerIncreaseScore,
+}
+
+table Event {
+    event: EventUnion;
+}
+
+table Events {
+    events: [Event];
+}
+
+root_type Events;

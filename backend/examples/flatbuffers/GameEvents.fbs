@@ -1,0 +1,37 @@
+// namespace Game;
+
+table PlayerJoined {
+    id: uint;
+    name: string;
+}
+
+table PlayerLeft {
+    id: uint;
+}
+
+table PlayerRename {
+    id: uint;
+    name: string;
+}
+
+table PlayerIncreaseScore {
+    id: uint;
+    score: uint;
+}
+
+union EventUnion {
+    PlayerJoined,
+    PlayerLeft,
+    PlayerRename,
+    PlayerIncreaseScore,
+}
+
+table Event {
+    event: EventUnion;
+}
+
+table EventList {
+    events: [Event];
+}
+
+root_type EventList;

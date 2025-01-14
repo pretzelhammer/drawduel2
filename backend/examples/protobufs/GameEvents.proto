@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package game_events;
+
+// Message representing a player joining.
+message PlayerJoined {
+    uint32 id = 1;
+    string name = 2;
+}
+
+// Message representing a player leaving.
+message PlayerLeft {
+    uint32 id = 1;
+}
+
+// Message representing a player renaming themselves.
+message PlayerRename {
+    uint32 id = 1;
+    string name = 2;
+}
+
+// Message representing a player increasing their score.
+message PlayerIncreaseScore {
+    uint32 id = 1;
+    uint32 score = 2;
+}
+
+// Union of different event types, modeled as a oneof.
+message Event {
+    oneof event {
+        PlayerJoined player_joined = 1;
+        PlayerLeft player_left = 2;
+        PlayerRename player_rename = 3;
+        PlayerIncreaseScore player_increase_score = 4;
+    }
+}
+
+// Message representing a list of events.
+message EventList {
+    repeated Event events = 1;
+}

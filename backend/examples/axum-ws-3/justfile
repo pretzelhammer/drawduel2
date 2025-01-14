@@ -1,0 +1,18 @@
+# list commands
+default:
+    @just --list
+
+# list commands
+list:
+    @just --list
+
+protoc-version:
+    protoc --version
+
+generate-rs:
+    protoc --prost_out=generated_rust --proto_path=./ game.proto
+
+generate-ts:
+    protoc --plugin=../../node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./generated_ts ./game.proto
+
+generate: generate-rs generate-ts

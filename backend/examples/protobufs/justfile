@@ -1,0 +1,21 @@
+# list commands
+default:
+    @just --list
+
+# list commands
+list:
+    @just --list
+
+protoc-version:
+    protoc --version
+
+generate-rust:
+    protoc --prost_out=generated_rust --proto_path=./ GameEvents.proto
+
+generate-ts-types:
+    typeshare ./main.rs --lang=typescript --output-file generated_ts/GameState.ts
+
+generate-ts-proto:
+    protoc --plugin=../../node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./generated_ts ./GameEvents.proto
+
+generate-ts: generate-ts-proto generate-ts-types

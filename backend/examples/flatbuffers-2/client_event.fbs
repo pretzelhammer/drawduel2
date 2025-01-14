@@ -1,0 +1,19 @@
+namespace ClientEvent;
+
+table PlayerRename {
+    name: string;
+}
+
+union EventUnion {
+    PlayerRename,
+}
+
+table Event {
+    event: EventUnion;
+}
+
+table Events {
+    events: [Event];
+}
+
+root_type Events;

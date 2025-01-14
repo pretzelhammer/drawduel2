@@ -1,0 +1,30 @@
+# list commands
+default:
+    @just --list
+
+# list commands
+list:
+    @just --list
+
+flatc-version:
+    flatc --version
+
+clean-generate:
+    rm -rf ./generated_rs/* ./generated_ts/*
+
+generate-rs:
+    flatc -o ./generated_rs --rust *.fbs
+    
+# game.fbs server_events.fbs client_events.fbs
+
+generate-ts: generate-ts-fbs generate-ts-types
+
+generate-ts-fbs:
+    flatc -o ./generated-ts --ts *.fbs
+    
+# game.fbs server_events.fbs client_events.fbs
+
+generate-ts-types:
+    typeshare ./main.rs --lang=typescript --output-file ./generated-ts/GameState.ts
+
+generate: generate-rs generate-ts
