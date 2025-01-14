@@ -1,3 +1,7 @@
-# drawduel2
+# backend
 
-Successor to [drawduel](https://github.com/pretzelhammer/drawduel), which was implemented 100% in TypeScript, preact on the frontend and node/express/socketio on the backend, and got to about 40% complete before being abandoned. This re-implementation will be 50% TypeScript and 50% Rust. The frontend will be in react, and the backend will likely use axum/fastwebsockets. Hopefully this implementation reaches 100% completion at some point.
+i tried flatbuffers and i tried protobufs and protobufs won:
+- smaller messages, easier api to work with
+
+i tried axum ws (tokio-tungstenite under the hood), but have yet to try fastwebsockets (from deno project), atm fastwebsockets doesn't seem to work with axum 0.8, and i don't want to put in the effort to try to make it work, or worse, try to make it work with http2 or tls.
+
