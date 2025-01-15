@@ -1,10 +1,9 @@
 import WebSocket from 'ws';
-import { ServerEvents } from './generated_ts/game';
+import { ServerEvents } from '../../src/game/mini/engine';
 
 interface PlayerInfo {
     name: string;
     pass: string;
-    room: string;
 }
 
 interface Player extends PlayerInfo {
@@ -15,43 +14,34 @@ const infos = [
     {
         name: 'alex',
         pass: 'aaa',
-        room: 'test-room',
     },
     {
         name: 'bob',
         pass: 'bbb',
-        room: 'test-room',
     },
     {
         name: 'charlie',
         pass: 'ccc',
-        room: 'test-room',
     },
     {
         name: 'dave',
         pass: 'ddd',
-        room: 'test-room',
     },
 ];
 
 function connectionString(i: PlayerInfo): string {
-    return `ws://127.0.0.1:3000/ws?name=${i.name}&pass=${i.pass}&room=${i.room}`;
+    return `ws://127.0.0.1:42069/mini-game-ws?name=${i.name}&pass=${i.pass}`;
 }
 
 // edit slice(0, n) to control how many players connect
-const players: Player[] = infos.slice(0, 4).map(i => ({
+const players: Player[] = infos.slice(0, 4).map((i) => ({
     ...i,
     socket: new WebSocket(connectionString(i)),
 }));
 
 function processPlayer(player: Player): Promise<void> {
     return new Promise((resolve, reject) => {
-        const {
-            name,
-            pass,
-            room,
-            socket,
-        } = player;
+        const { name, socket } = player;
 
         setTimeout(() => {
             console.log(`${name} closing connection`);
@@ -60,7 +50,7 @@ function processPlayer(player: Player): Promise<void> {
         }, Math.floor(Math.random() * 10000) + 2000);
 
         socket.on('open', () => {
-            console.log(`${name} connected to ${room}`);
+            console.log(`${name} connected to mini game`);
         });
 
         let pingCount = 0;
@@ -78,14 +68,23 @@ function processPlayer(player: Player): Promise<void> {
             console.log(`${name} got ${pongCount} pongs`);
         });
 
-        socket.on('message', (data: string | Uint8Array) => {
-            if (data instanceof Uint8Array) {
-                let events = ServerEvents.decode(data);
-                console.log('events from server:', JSON.stringify(events));
-            } else {
-                console.log('message from server:', data);
-            }
-        });
+        socket.on(
+            'message',
+            (data: string | Uint8Array) => {
+                if (data instanceof Uint8Array) {
+                    let events = ServerEvents.decode(data);
+                    console.log(
+                        'events from server:',
+                        JSON.stringify(events),
+                    );
+                } else {
+                    console.log(
+                        'message from server:',
+                        data,
+                    );
+                }
+            },
+        );
 
         socket.on('error', (error) => {
             console.error(`${name} got error: ${error}`);
@@ -93,11 +92,13 @@ function processPlayer(player: Player): Promise<void> {
         });
 
         socket.on('close', () => {
-            console.log(`server closed ${name}'s connection to ${room}`);
+            console.log(
+                `server closed ${name}'s connection`,
+            );
             resolve();
         });
     });
-};
+}
 
 async function main(players: Player[]) {
     try {
