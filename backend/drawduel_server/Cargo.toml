@@ -1,0 +1,32 @@
+[package]
+name = "drawduel_server"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+drawduel_engine = { path = "../drawduel_engine" }
+flatbuffers = "24.12.23"
+prost = "0.13.0"
+axum = { version = "0.8.1", features = ["ws"] }
+axum-extra = { version = "0.10.0", features = ["protobuf", "typed-header"] }
+tokio-tungstenite = "0.26.0"
+futures = "0.3"
+futures-util = { version = "0.3", features = ["sink", "std"] }
+tokio = { version = "1.43.0", features = ["full"] }
+hyper = { version = "1", features = ["full"] }
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["full"] }
+fastwebsockets = { version = "0.9.0", features = [
+    "upgrade",
+    "with_axum",
+    "unstable-split",
+] }
+anyhow = "1.0.95"
+typeshare = "1.0.4"
+serde = "1.0.217"
+serde_json = "1.0.135"
+headers = "0.4"
+tower-http = { version = "0.6.1", features = ["fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dashmap = "6.1.0"

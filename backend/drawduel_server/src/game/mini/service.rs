@@ -1,56 +1,41 @@
-use crate::game::mini::engine::*;
+#![allow(unused_variables, dead_code)]
 
+use axum::extract::connect_info::ConnectInfo;
 use axum::{
     body::Bytes,
     extract::{
-        ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
+        ws::{Message, WebSocket, WebSocketUpgrade},
         Query, State,
     },
     response::IntoResponse,
-    routing::any,
-    Router,
 };
-use axum_extra::TypedHeader;
-use dashmap::DashMap;
-use hyper::{client::conn, StatusCode};
+use drawduel_engine::game::mini::*;
+use hyper::StatusCode;
 use prost::Message as ProstMessage;
 use serde::Deserialize;
-use tokio::{
-    net::unix::pipe::Receiver,
-    sync::{broadcast, mpsc, oneshot},
-    time::{self, sleep},
-};
-
+use std::net::SocketAddr;
 use std::{
     collections::HashMap,
-    ops::ControlFlow,
+    fmt::{Debug, Display},
     sync::Arc,
     time::{Duration, Instant},
 };
-use std::{net::SocketAddr, path::PathBuf};
-use tower_http::{
-    services::ServeDir,
-    trace::{DefaultMakeSpan, TraceLayer},
+use tokio::{
+    sync::{broadcast, mpsc, oneshot},
+    time::{self},
 };
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-// allows to extract the IP of connecting user
-use axum::extract::connect_info::ConnectInfo;
-use axum::extract::ws::CloseFrame;
-
-// allows to split the websocket stream into separate TX and RX branches
-use futures::{sink::SinkExt, stream::StreamExt};
-
 type PlayerId = u32;
-type SerializedMsg = Arc<Vec<u8>>;
+type SerializedMsg = Bytes;
 type UniqueSerializedMsg = Vec<u8>;
 type GameTx = broadcast::Sender<SerializedMsg>;
 type GameRx = broadcast::Receiver<SerializedMsg>;
 type RoomTx = mpsc::Sender<RoomEvent>;
 type RoomRx = mpsc::Receiver<RoomEvent>;
-type RegisterTx = oneshot::Sender<Result<(PlayerId, UniqueSerializedMsg, GameRx), SeError>>;
-type RegisterRx = oneshot::Receiver<Result<(PlayerId, UniqueSerializedMsg, GameRx), SeError>>;
+type RegisterTx =
+    oneshot::Sender<Result<(PlayerId, UniqueSerializedMsg, GameRx), SeError>>;
+type RegisterRx =
+    oneshot::Receiver<Result<(PlayerId, UniqueSerializedMsg, GameRx), SeError>>;
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct ClientInfo {
@@ -76,6 +61,7 @@ impl SharedServiceState {
     }
 }
 
+#[derive(Debug)]
 struct RoomState {
     passes: HashMap<String, u32>,
     disconnects: Vec<(PlayerId, Instant)>,
@@ -88,12 +74,16 @@ impl RoomState {
             disconnects: Vec::new(),
         }
     }
+    fn reset(&mut self) {
+        self.passes.clear();
+        self.disconnects.clear();
+    }
 }
 
 #[derive(Debug)]
 enum RoomEvent {
     ClientConnect {
-        finish_registration: RegisterTx,
+        register_tx: RegisterTx,
         client_info: ClientInfo,
     },
     ClientDisconnect {
@@ -105,7 +95,27 @@ enum RoomEvent {
     },
 }
 
-fn error_into_response(error: SeError, client_info: ClientInfo) -> axum::response::Response {
+impl Display for RoomEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let RoomEvent::ClientConnect {
+            register_tx,
+            client_info,
+        } = self
+        {
+            f.debug_struct("ClientConnect")
+                .field("register_tx", &"register_tx")
+                .field("client_info", client_info)
+                .finish()
+        } else {
+            Debug::fmt(self, f)
+        }
+    }
+}
+
+fn error_into_response(
+    error: SeError,
+    client_info: ClientInfo,
+) -> axum::response::Response {
     match SeErrorType::try_from(error.se_error_type) {
         Ok(SeErrorType::AlreadyConnected) => (
             StatusCode::CONFLICT,
@@ -132,34 +142,41 @@ pub async fn ws_handler(
     Query(client_info): Query<ClientInfo>,
     State(shared_service_state): State<SharedServiceState>,
 ) -> impl IntoResponse {
-    println!(
-        "{:?} w/pass {} at {addr} connected",
-        client_info.name, client_info.pass
+    tracing::trace!(
+        "{:?} w/pass {} @ {addr} connecting",
+        client_info.name,
+        client_info.pass
     );
     let room_tx = shared_service_state.room_tx;
 
     // 1. player has to register themself with room
     let (register_tx, register_rx) = oneshot::channel();
-    room_tx
+    if let Err(err) = room_tx
         .send(RoomEvent::ClientConnect {
-            finish_registration: register_tx,
+            register_tx: register_tx,
             client_info: client_info.clone(),
         })
         .await
-        .unwrap(); // TODO: this panics if players leave and rejoin room
+    {
+        tracing::error!(
+            "MINI GAME ROOM SHOULD ALWAYS EXIST AND ACCEPT ALL MSGS: {err}"
+        );
+    }
     let recv_result = register_rx.await;
     if let Ok(register_result) = recv_result {
         match register_result {
-            Ok((player_id, set_game_event, game_rx)) => ws.on_upgrade(move |socket| {
-                player_manager(
-                    socket,
-                    addr,
-                    player_id,
-                    set_game_event,
-                    game_rx,
-                    (*room_tx).clone(),
-                )
-            }),
+            Ok((player_id, set_game_event, game_rx)) => {
+                ws.on_upgrade(move |socket| {
+                    player_manager(
+                        socket,
+                        addr,
+                        player_id,
+                        set_game_event,
+                        game_rx,
+                        (*room_tx).clone(),
+                    )
+                })
+            }
             Err(error) => error_into_response(error, client_info),
         }
     } else {
@@ -201,33 +218,13 @@ fn serialize_set_game(
             panic!("this should be impossible")
         }
     };
+    events.clear();
     (game, events, serialized)
 }
 
-impl ServerEvent {
-    fn from_client(player_id: PlayerId, client_event: ClientEvent) -> Self {
-        match client_event.ce_type.unwrap() {
-            CeType::Rename(rename) => ServerEvent {
-                se_type: Some(SeType::PlayerRename(SePlayerRename {
-                    id: player_id,
-                    name: rename.name,
-                })),
-            },
-            CeType::IncreaseScore(increase_score) => ServerEvent {
-                se_type: Some(SeType::PlayerIncreaseScore(SePlayerIncreaseScore {
-                    id: player_id,
-                    score: increase_score.score,
-                })),
-            },
-        }
-    }
-}
-
 fn serialize_server_events(
-    server_event: ServerEvent,
     mut events: Vec<ServerEvent>,
 ) -> (Vec<ServerEvent>, SerializedMsg) {
-    events.push(server_event);
     let server_events = ServerEvents { events: events };
     let mut serialized = Vec::<u8>::with_capacity(32);
     server_events
@@ -235,7 +232,7 @@ fn serialize_server_events(
         .expect("serialized server events");
     events = server_events.events;
     events.clear();
-    (events, Arc::new(serialized))
+    (events, Bytes::from(serialized))
 }
 
 async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
@@ -244,15 +241,19 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
     let mut room_state = RoomState::new();
     let mut events: Vec<ServerEvent> = Vec::with_capacity(4);
     loop {
-        let event = room_rx.recv().await;
-        if event.is_none() {
-            println!("DESTROYING ONLY MINIGAME ROOM NOOOOO!!!");
-            break;
-        }
-        println!("room got event {event:?}");
-        match event.unwrap() {
+        let event = match room_rx.recv().await {
+            None => {
+                tracing::error!("DESTROYING ONLY MINIGAME ROOM NOOOOO!!!");
+                break;
+            }
+            Some(event) => event,
+        };
+
+        tracing::trace!("mini game state {game:?}");
+        tracing::trace!("room got event {event}");
+        match event {
             RoomEvent::ClientConnect {
-                finish_registration,
+                register_tx,
                 client_info,
             } => {
                 let ClientInfo { name, pass } = client_info;
@@ -261,19 +262,22 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                 if let Some(&player_id) = room_state.passes.get(&pass) {
                     // let other players know this player has reconnected
                     let player_connect = ServerEvent {
-                        se_type: Some(SeType::PlayerConnect(SePlayerConnect { id: player_id })),
+                        se_type: Some(SeType::PlayerConnect(SePlayerConnect {
+                            id: player_id,
+                        })),
                     };
 
                     // not sure when this would ever be false, maybe if player
                     // disconnected due to stale connection earlier?
-                    let player_connected = game.advance(player_connect);
+                    game.advance(player_connect, &mut events);
+                    let player_connected = !events.is_empty();
                     debug_assert!(
-                        player_connected.is_some(),
+                        player_connected,
                         "player {player_id} connected to room but was already connected in game"
                     );
-                    if let Some(server_event) = player_connected {
+                    if player_connected {
                         let (reused_events, serialized_msg) =
-                            serialize_server_events(server_event, events);
+                            serialize_server_events(events);
                         events = reused_events;
                         game_tx
                             .send(serialized_msg)
@@ -285,8 +289,12 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                         serialize_set_game(game, events, player_id);
                     game = reused_game;
                     events = reused_events;
-                    finish_registration
-                        .send(Ok((player_id, serialized_msg, game_tx.subscribe())))
+                    register_tx
+                        .send(Ok((
+                            player_id,
+                            serialized_msg,
+                            game_tx.subscribe(),
+                        )))
                         .expect("sent init msg to reconnecting player");
 
                 // otherwise this is a new player connecting
@@ -294,30 +302,39 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                     // let other players know this player has joined
                     let new_player_id = next_player_id;
                     next_player_id += 1;
-                    let player_name = name.unwrap_or_else(|| format!("player{new_player_id:02}"));
+                    let player_name = name
+                        .unwrap_or_else(|| format!("player{new_player_id:02}"));
                     let player_join = ServerEvent {
                         se_type: Some(SeType::PlayerJoin(SePlayerJoin {
                             id: new_player_id,
                             name: player_name,
                         })),
                     };
-                    let is_very_first_player = new_player_id == 0;
 
                     // not sure when this would ever be false, something very wrong
                     // must have occurred for this to somehow be false
-                    let player_joined = game.advance(player_join);
-                    debug_assert!(player_joined.is_some(), "new player {new_player_id} connected but was already present in game state");
-                    if let Some(server_event) = player_joined {
+                    game.advance(player_join, &mut events);
+                    let player_joined = !events.is_empty();
+                    debug_assert!(player_joined, "new player {new_player_id} connected but was already present in game state");
+                    if player_joined {
                         room_state.passes.insert(pass, new_player_id);
 
-                        // no need to send this event if there are no other
-                        // players yet, which is why we check if this is the
-                        // first player
-                        if !is_very_first_player {
+                        let multiple_players = game.connected_players() > 1;
+                        tracing::trace!("multiple players {multiple_players}");
+
+                        // only send msg if there are other players
+                        // to receive it
+                        if multiple_players {
                             let (reused_events, serialized_msg) =
-                                serialize_server_events(server_event, events);
+                                serialize_server_events(events);
                             events = reused_events;
-                            game_tx.send(serialized_msg).expect("sent player join msg");
+                            if let Err(err) = game_tx.send(serialized_msg) {
+                                tracing::error!(
+                                    "sent game message to empty game: {err}"
+                                );
+                            }
+                        } else {
+                            events.clear();
                         }
                     }
 
@@ -326,8 +343,12 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                         serialize_set_game(game, events, new_player_id);
                     game = reused_game;
                     events = reused_events;
-                    finish_registration
-                        .send(Ok((new_player_id, serialized_msg, game_tx.subscribe())))
+                    register_tx
+                        .send(Ok((
+                            new_player_id,
+                            serialized_msg,
+                            game_tx.subscribe(),
+                        )))
                         .expect("sent init msg to reconnecting player");
                 }
             }
@@ -335,11 +356,13 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                 player_id,
                 client_event,
             } => {
-                let server_event = ServerEvent::from_client(player_id, client_event);
-                let advanced = game.advance(server_event);
-                if let Some(server_event) = advanced {
+                let server_event =
+                    ServerEvent::from_client(player_id, client_event);
+                game.advance(server_event, &mut events);
+                let advanced = !events.is_empty();
+                if advanced {
                     let (reused_events, serialized_msg) =
-                        serialize_server_events(server_event, events);
+                        serialize_server_events(events);
                     events = reused_events;
                     game_tx
                         .send(serialized_msg)
@@ -348,19 +371,20 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
             }
             RoomEvent::ClientDisconnect { player_id } => {
                 let server_event = ServerEvent {
-                    se_type: Some(SeType::PlayerDisconnect(SePlayerDisconnect {
-                        id: player_id,
-                    })),
+                    se_type: Some(SeType::PlayerDisconnect(
+                        SePlayerDisconnect { id: player_id },
+                    )),
                 };
-                let advanced = game.advance(server_event);
-                if let Some(server_event) = advanced {
-                    println!("mini game state {game:?}");
+                game.advance(server_event, &mut events);
+                let advanced = !events.is_empty();
+                if advanced {
                     let (reused_events, serialized_msg) =
-                        serialize_server_events(server_event, events);
+                        serialize_server_events(events);
                     events = reused_events;
                     if let Err(err) = game_tx.send(serialized_msg) {
                         // if we're here it means all players have disconnected
-                        // no-op
+                        game.reset();
+                        room_state.reset();
                     }
                 }
             }
@@ -373,7 +397,7 @@ async fn player_manager(
     addr: SocketAddr,
     player_id: u32,
     set_game_event: UniqueSerializedMsg,
-    game_rx: GameRx,
+    mut game_rx: GameRx,
     room_tx: RoomTx,
 ) {
     let inactive_duration = Duration::from_millis(4000);
@@ -399,9 +423,9 @@ async fn player_manager(
             _ = alive_interval.tick() => {
                 let now = Instant::now();
                 let diff = now.duration_since(last_client_event);
-                // println!("alive check for {player_id}, now {now:?}, last_client_event {last_client_event:?}, diff {diff:?}");
+                // tracing::trace!("alive check for {player_id}, now {now:?}, last_client_event {last_client_event:?}, diff {diff:?}");
                 if diff > stale_duration {
-                    println!("dropping stale player {player_id} @ {addr}");
+                    tracing::trace!("dropping stale player {player_id} @ {addr}");
                     room_tx
                         .send(RoomEvent::ClientDisconnect {
                             player_id,
@@ -413,7 +437,7 @@ async fn player_manager(
                 if diff > inactive_duration {
                     let send_result = socket.send(Message::Ping(Bytes::from_static(b""))).await;
                     if let Err(err) = send_result {
-                        println!("failed to send ping to player {player_id} @ {addr}: {err}");
+                        tracing::trace!("failed to send ping to player {player_id} @ {addr}: {err}");
                         room_tx
                             .send(RoomEvent::ClientDisconnect {
                                 player_id,
@@ -441,11 +465,12 @@ async fn player_manager(
                                             .expect("sent player event to room");
                                     },
                                     Err(err) => {
-                                        println!("failed to decode player event: {err}");
+                                        tracing::warn!("failed to decode player event: {err}");
                                     },
                                 }
                             },
-                            Message::Close(_) => {
+                            Message::Close(close) => {
+                                tracing::trace!("got close from {player_id}: {close:?}");
                                 // axum handles response automatically
                                 // but we still want to break out of
                                 // this loop if player is quitting
@@ -463,20 +488,20 @@ async fn player_manager(
                             // messages since we only communicate
                             // by binary
                             Message::Ping(ping) => {
-                                println!("got ping from {player_id}: {ping:?}");
+                                tracing::trace!("got ping from {player_id}: {ping:?}");
                                 // no-op, axum auto-pongs for us
                             },
                             Message::Pong(pong) => {
-                                println!("got pong from {player_id}: {pong:?}");
+                                tracing::trace!("got pong from {player_id}: {pong:?}");
                                 // no-op
                             },
                             Message::Text(text) => {
-                                println!("got pong from {player_id}: {text}");
+                                tracing::trace!("got pong from {player_id}: {text}");
                                 // no-op
                             },
                         }
                     } else {
-                        println!("{player_id} @ {addr} disconnected abruptly: {}", result_msg.unwrap_err());
+                        tracing::trace!("player {player_id} @ {addr} disconnected abruptly: {}", result_msg.unwrap_err());
                         room_tx
                             .send(RoomEvent::ClientDisconnect {
                                 player_id,
@@ -486,7 +511,31 @@ async fn player_manager(
                         break;
                     }
                 } else {
-                    println!("{player_id} @ {addr} closed connection");
+                    tracing::trace!("player {player_id} @ {addr} closed connection");
+                    room_tx
+                        .send(RoomEvent::ClientDisconnect {
+                            player_id,
+                        })
+                        .await
+                        .expect("sent disconnect msg");
+                    break;
+                }
+            },
+            recv_result = game_rx.recv() => {
+                if let Ok(serialized_msg) = recv_result {
+                    let send_result = socket.send(Message::Binary(serialized_msg)).await;
+                    if let Err(_) = send_result {
+                        tracing::trace!("player {player_id} @ {addr} failed to send game event, breaking");
+                        room_tx
+                            .send(RoomEvent::ClientDisconnect {
+                                player_id,
+                            })
+                            .await
+                            .expect("sent disconnect msg");
+                        break;
+                    }
+                } else {
+                    tracing::trace!("player {player_id} @ {addr} failed to recv game event, breaking");
                     room_tx
                         .send(RoomEvent::ClientDisconnect {
                             player_id,

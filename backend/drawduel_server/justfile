@@ -6,6 +6,15 @@ default:
 list:
     @just --list
 
+run:
+    cargo run
+
+watch:
+    cargo watch -x run
+
+
+
+
 fb-rs:
     cargo run --example flatbuffers
 

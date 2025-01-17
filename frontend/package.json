@@ -1,23 +1,35 @@
 {
   "name": "drawduel",
+  "private": true,
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "example": "examples"
-  },
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/node": "^22.10.6",
-    "tsx": "^4.19.2"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test-mini-game-quick": "vitest --dir ./tests/mini-game/quick"
   },
   "dependencies": {
-    "flatbuffers": "^24.12.23",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "ts-proto": "^2.6.1",
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.7",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.18.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8",
     "ws": "^8.18.0"
   }
 }

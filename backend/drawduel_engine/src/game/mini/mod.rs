@@ -5,24 +5,47 @@ pub use generated::client_event::CeType;
 pub use generated::server_event::SeType;
 pub use generated::*;
 
+type PlayerId = u32;
+
 impl Game {
     pub fn new() -> Self {
         Self {
             players: HashMap::new(),
         }
     }
+    pub fn reset(&mut self) {
+        self.players.clear();
+    }
     // true if no players, or all players disconnected
     pub fn empty(&self) -> bool {
-        let connected_players = self.players.iter().fold(0, |acc, (_, p)| {
-            if p.connected {
-                acc + 1
-            } else {
-                acc
-            }
-        });
-        connected_players == 0
+        self.connected_players() == 0
     }
-    pub fn advance(&mut self, event: ServerEvent) -> Option<ServerEvent> {
+    pub fn connected_players(&self) -> usize {
+        self.players.iter().fold(
+            0,
+            |acc, (_, p)| {
+                if p.connected {
+                    acc + 1
+                } else {
+                    acc
+                }
+            },
+        )
+    }
+    pub fn advance_all(
+        &mut self,
+        events: ServerEvents,
+        send_buf: &mut Vec<ServerEvent>,
+    ) {
+        for event in events.events {
+            self.advance(event, send_buf);
+        }
+    }
+    pub fn advance(
+        &mut self,
+        event: ServerEvent,
+        send_buf: &mut Vec<ServerEvent>,
+    ) {
         match event.se_type.as_ref().unwrap() {
             SeType::PlayerJoin(player_join) => {
                 let overwrote_existing_player = self
@@ -41,28 +64,26 @@ impl Game {
                         "overwrote existing player, this should never happen!"
                     );
                 }
-                Some(event)
+                send_buf.push(event);
             }
             SeType::PlayerLeave(player_leave) => {
                 let player_id = player_leave.id;
-                self.players.remove(&player_id).map(|_| event)
+                if self.players.remove(&player_id).is_some() {
+                    send_buf.push(event);
+                }
             }
             SeType::PlayerRename(player_rename) => {
                 let player_id = player_rename.id;
                 if let Some(player) = self.players.get_mut(&player_id) {
                     player.name = player_rename.name.clone();
-                    Some(event)
-                } else {
-                    None
+                    send_buf.push(event);
                 }
             }
             SeType::PlayerIncreaseScore(player_increase_score) => {
                 let player_id = player_increase_score.id;
                 if let Some(player) = self.players.get_mut(&player_id) {
                     player.score += player_increase_score.score;
-                    Some(event)
-                } else {
-                    None
+                    send_buf.push(event);
                 }
             }
             SeType::PlayerConnect(player_connect) => {
@@ -70,12 +91,8 @@ impl Game {
                 if let Some(player) = self.players.get_mut(&player_id) {
                     if !player.connected {
                         player.connected = true;
-                        Some(event)
-                    } else {
-                        None
+                        send_buf.push(event);
                     }
-                } else {
-                    None
                 }
             }
             SeType::PlayerDisconnect(player_disconnect) => {
@@ -83,19 +100,35 @@ impl Game {
                 if let Some(player) = self.players.get_mut(&player_id) {
                     if player.connected {
                         player.connected = false;
-                        Some(event)
-                    } else {
-                        None
+                        send_buf.push(event);
                     }
-                } else {
-                    None
                 }
             }
             _ => {
                 // if reached here means we can ignore the event
                 // since it doesn't produce a state change
-                None
             }
+        }
+    }
+}
+
+impl ServerEvent {
+    pub fn from_client(player_id: PlayerId, client_event: ClientEvent) -> Self {
+        match client_event.ce_type.unwrap() {
+            CeType::Rename(rename) => ServerEvent {
+                se_type: Some(SeType::PlayerRename(SePlayerRename {
+                    id: player_id,
+                    name: rename.name,
+                })),
+            },
+            CeType::IncreaseScore(increase_score) => ServerEvent {
+                se_type: Some(SeType::PlayerIncreaseScore(
+                    SePlayerIncreaseScore {
+                        id: player_id,
+                        score: increase_score.score,
+                    },
+                )),
+            },
         }
     }
 }
