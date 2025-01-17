@@ -1,16 +1,27 @@
+#![allow(unused_imports, dead_code, unused_variables)]
+
 use axum::{
     body::Bytes,
-    extract::{ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade}, Query},
+    extract::{
+        ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
+        Query,
+    },
     response::IntoResponse,
     routing::any,
     Router,
 };
 use axum_extra::TypedHeader;
 use serde::Deserialize;
-use tokio::{sync::mpsc, time::{self, sleep}};
+use tokio::{
+    sync::mpsc,
+    time::{self, sleep},
+};
 
-use std::{ops::ControlFlow, time::{Duration, Instant}};
 use std::{net::SocketAddr, path::PathBuf};
+use std::{
+    ops::ControlFlow,
+    time::{Duration, Instant},
+};
 use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
@@ -29,21 +40,26 @@ use futures::{sink::SinkExt, stream::StreamExt};
 async fn main() {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                format!("{}=debug,tower_http=debug", env!("CARGO_CRATE_NAME")).into()
-            }),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| {
+                    format!(
+                        "{}=debug,tower_http=debug",
+                        env!("CARGO_CRATE_NAME")
+                    )
+                    .into()
+                }),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
     // build our application with some routes
-    let app = Router::new()
-        .route("/ws", any(ws_handler))
-        // logging so we can see whats going on
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::default().include_headers(true)),
-        );
+    let app =
+        Router::new()
+            .route("/ws", any(ws_handler))
+            // logging so we can see whats going on
+            .layer(TraceLayer::new_for_http().make_span_with(
+                DefaultMakeSpan::default().include_headers(true),
+            ));
 
     // run it with hyper
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
@@ -80,7 +96,10 @@ async fn ws_handler(
     } else {
         String::from("Unknown browser")
     };
-    println!("{user_agent} w/name {} & w/pass {} at {addr} connected", query.name, query.pass);
+    println!(
+        "{user_agent} w/name {} & w/pass {} at {addr} connected",
+        query.name, query.pass
+    );
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| handle_socket(socket, addr))
@@ -303,7 +322,9 @@ fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
                     who, cf.code, cf.reason
                 );
             } else {
-                println!(">>> {who} somehow sent close message without CloseFrame");
+                println!(
+                    ">>> {who} somehow sent close message without CloseFrame"
+                );
             }
             return ControlFlow::Break(());
         }
