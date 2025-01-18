@@ -9,15 +9,15 @@ list:
 protoc-version:
 	protoc --version
 
-generate-rs:
+build-proto-rs:
 	protoc --prost_out=./backend/engine/src/game/full --proto_path=./agnostic game.proto
 	protoc --prost_out=./backend/engine/src/game/mini --proto_path=./agnostic mini_game.proto
 
-generate-ts:
+build-proto-ts:
 	protoc --plugin=./frontend/node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./frontend/src/game/full/engine --proto_path=./agnostic game.proto
 	protoc --plugin=./frontend/node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./frontend/src/game/mini/engine --proto_path=./agnostic mini_game.proto
 
-generate: generate-rs generate-ts
+build-proto: build-proto-rs build-proto-ts
 
 build-wasm:
     cd ./backend/drawduel_wasm && wasm-pack build --release --target nodejs
