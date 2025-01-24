@@ -25,6 +25,8 @@ use tokio::{
     time::{self},
 };
 
+use crate::game::words::{random_easy_word, random_hard_word};
+
 type PlayerId = u32;
 type SerializedMsg = Bytes;
 type UniqueSerializedMsg = Vec<u8>;
@@ -235,9 +237,26 @@ fn serialize_server_events(
     (events, Bytes::from(serialized))
 }
 
+struct SerialIds(u32);
+
+impl SerialIds {
+    fn new() -> Self {
+        SerialIds(0)
+    }
+    fn reset(&mut self) {
+        self.0 = 0;
+    }
+    fn get_id(&mut self) -> u32 {
+        let id = self.0;
+        self.0 += 1;
+        id
+    }
+}
+
 async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
-    let mut next_player_id = 0u32;
-    let mut game = Game::new();
+    let mut player_ids = SerialIds::new();
+    let mut round_ids = SerialIds::new();
+    let mut game = Game::new(random_easy_word(), random_hard_word());
     let mut room_state = RoomState::new();
     let mut events: Vec<ServerEvent> = Vec::with_capacity(4);
     loop {
@@ -300,8 +319,7 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                 // otherwise this is a new player connecting
                 } else {
                     // let other players know this player has joined
-                    let new_player_id = next_player_id;
-                    next_player_id += 1;
+                    let new_player_id = player_ids.get_id();
                     let player_name = name
                         .unwrap_or_else(|| format!("player{new_player_id:02}"));
                     let player_join = ServerEvent {
@@ -383,7 +401,7 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                     events = reused_events;
                     if let Err(err) = game_tx.send(serialized_msg) {
                         // if we're here it means all players have disconnected
-                        game.reset();
+                        game.reset(random_easy_word(), random_hard_word());
                         room_state.reset();
                     }
                 }
@@ -400,6 +418,8 @@ async fn player_manager(
     mut game_rx: GameRx,
     room_tx: RoomTx,
 ) {
+    // check every 5 secs in development but should
+    // probably bump it up to every 20 secs for prod
     let inactive_duration = Duration::from_millis(4000);
     let stale_duration = Duration::from_millis(9000);
     let alive_duration = Duration::from_millis(5000);

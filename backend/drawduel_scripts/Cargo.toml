@@ -1,0 +1,15 @@
+[package]
+name = "drawduel_scripts"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+fastrand = "2.3.0"
+
+[[bin]]
+name = "normalize_words"
+path = "src/bin/normalize_words.rs"
+
+[[bin]]
+name = "generate_words"
+path = "src/bin/generate_words.rs"

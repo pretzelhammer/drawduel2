@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 drawduel_engine = { path = "../drawduel_engine" }
+fastrand = "2.3.0"
 flatbuffers = "24.12.23"
 prost = "0.13.0"
 axum = { version = "0.8.1", features = ["ws"] }

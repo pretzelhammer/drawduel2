@@ -6,11 +6,6 @@ use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-pub fn add(a: i32, b: i32) -> i32 {
-    a + b
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct SerializedNextState {
     pub apply_events: SerializedEvents,
@@ -82,28 +77,5 @@ fn advance(
     }))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use drawduel_engine::game::mini::{SePlayerJoin, SeType};
-
-    #[test]
-    fn player_joins() {
-        let mut game = Game::new();
-        let player_join = ServerEvent {
-            se_type: Some(SeType::PlayerJoin(SePlayerJoin {
-                id: 0,
-                name: "adam".into(),
-            })),
-        };
-        if let Ok(Some(NextState {
-            apply_events,
-            next_game,
-        })) = advance(player_join, game.clone())
-        {
-            let mut send_buf = Vec::new();
-            game.advance_all(apply_events, &mut send_buf);
-            assert_eq!(game, next_game);
-        }
-    }
-}
+// Do not put tests here, put them in
+// frontend/tests/mini-game/quick/engine.test.ts

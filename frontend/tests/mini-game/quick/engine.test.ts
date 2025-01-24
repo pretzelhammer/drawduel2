@@ -1,25 +1,25 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* @ts-ignore */
+
 import { describe, test, expect, beforeAll } from 'vitest';
 import {
     Game,
-    Player,
     ServerEvent,
     ServerEvents,
     advanceAllGame,
-    advanceGame,
-} from '../../../src/game/mini/engine';
-import { client_advance, server_advance } from '../../wasm/drawduel_wasm';
-import cloneDeep from 'lodash-es/cloneDeep';
-import isString from 'lodash-es/isString';
+} from 'src/game/mini/engine';
+import { server_advance } from 'tests/wasm/drawduel_wasm';
 
-function log(...args: any[]) {
-    for (let arg of args) {
-        if (isString(arg)) {
-            console.log(arg);
-        } else {
-            console.dir(arg, { depth: null, colors: true });
-        }
-    }
-}
+// import isString from 'lodash-es/isString';
+// function log(...args: any[]) {
+//     for (let arg of args) {
+//         if (isString(arg)) {
+//             console.log(arg);
+//         } else {
+//             console.dir(arg, { depth: null, colors: true });
+//         }
+//     }
+// }
 
 function expectServerClientGamesInSync(serverEvent: ServerEvent, game: Game) {
     let next_state = server_advance(
@@ -135,10 +135,32 @@ describe(
             let playerIncreaseScore = ServerEvent.fromPartial({
                 playerIncreaseScore: {
                     id: 0,
-                    score: 100,
+                    increaseBy: 100,
                 },
             });
             expectServerClientGamesInSync(playerIncreaseScore, game);
+        });
+
+        test('player increases drawer score (new game)', () => {
+            let game = newGame();
+            let playerIncreaseDrawerScore = ServerEvent.fromPartial({
+                playerIncreaseDrawerScore: {
+                    id: 0,
+                    increaseBy: 100,
+                },
+            });
+            expectServerClientGamesInSync(playerIncreaseDrawerScore, game);
+        });
+
+        test('player increases guesser score (new game)', () => {
+            let game = newGame();
+            let playerIncreaseGuesserScore = ServerEvent.fromPartial({
+                playerIncreaseGuesserScore: {
+                    id: 0,
+                    increaseBy: 100,
+                },
+            });
+            expectServerClientGamesInSync(playerIncreaseGuesserScore, game);
         });
 
         // one player
@@ -200,10 +222,32 @@ describe(
             let playerIncreaseScore = ServerEvent.fromPartial({
                 playerIncreaseScore: {
                     id: 0,
-                    score: 100,
+                    increaseBy: 100,
                 },
             });
             expectServerClientGamesInSync(playerIncreaseScore, game);
+        });
+
+        test('player increases drawer score (one player)', () => {
+            let game = onePlayerGame();
+            let playerIncreaseDrawerScore = ServerEvent.fromPartial({
+                playerIncreaseDrawerScore: {
+                    id: 0,
+                    increaseBy: 100,
+                },
+            });
+            expectServerClientGamesInSync(playerIncreaseDrawerScore, game);
+        });
+
+        test('player increases guesser score (one player)', () => {
+            let game = onePlayerGame();
+            let playerIncreaseGuesserScore = ServerEvent.fromPartial({
+                playerIncreaseGuesserScore: {
+                    id: 0,
+                    increaseBy: 100,
+                },
+            });
+            expectServerClientGamesInSync(playerIncreaseGuesserScore, game);
         });
 
         // two player
@@ -265,10 +309,32 @@ describe(
             let playerIncreaseScore = ServerEvent.fromPartial({
                 playerIncreaseScore: {
                     id: 1,
-                    score: 100,
+                    increaseBy: 100,
                 },
             });
             expectServerClientGamesInSync(playerIncreaseScore, game);
+        });
+
+        test('player increases drawer score (two player)', () => {
+            let game = twoPlayerGame();
+            let playerIncreaseDrawerScore = ServerEvent.fromPartial({
+                playerIncreaseDrawerScore: {
+                    id: 1,
+                    increaseBy: 100,
+                },
+            });
+            expectServerClientGamesInSync(playerIncreaseDrawerScore, game);
+        });
+
+        test('player increases guesser score (two player)', () => {
+            let game = twoPlayerGame();
+            let playerIncreaseGuesserScore = ServerEvent.fromPartial({
+                playerIncreaseGuesserScore: {
+                    id: 1,
+                    increaseBy: 100,
+                },
+            });
+            expectServerClientGamesInSync(playerIncreaseGuesserScore, game);
         });
     },
 );

@@ -1,5 +1,5 @@
 [workspace]
-members = ["drawduel_engine", "drawduel_wasm", "drawduel_server"]
+members = ["drawduel_engine", "drawduel_wasm", "drawduel_server", "drawduel_scripts"]
 resolver = "2"
 
 # https://nnethercote.github.io/perf-book/build-configuration.html

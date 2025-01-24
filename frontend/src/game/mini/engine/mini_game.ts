@@ -9,6 +9,117 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "generated";
 
+export enum Phase {
+  CHOOSE_WORD = 0,
+  PRE_PLAY = 1,
+  PLAY = 2,
+  POST_PLAY = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function phaseFromJSON(object: any): Phase {
+  switch (object) {
+    case 0:
+    case "CHOOSE_WORD":
+      return Phase.CHOOSE_WORD;
+    case 1:
+    case "PRE_PLAY":
+      return Phase.PRE_PLAY;
+    case 2:
+    case "PLAY":
+      return Phase.PLAY;
+    case 3:
+    case "POST_PLAY":
+      return Phase.POST_PLAY;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Phase.UNRECOGNIZED;
+  }
+}
+
+export function phaseToJSON(object: Phase): string {
+  switch (object) {
+    case Phase.CHOOSE_WORD:
+      return "CHOOSE_WORD";
+    case Phase.PRE_PLAY:
+      return "PRE_PLAY";
+    case Phase.PLAY:
+      return "PLAY";
+    case Phase.POST_PLAY:
+      return "POST_PLAY";
+    case Phase.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export enum WordChoice {
+  EASY = 0,
+  HARD = 1,
+  UNRECOGNIZED = -1,
+}
+
+export function wordChoiceFromJSON(object: any): WordChoice {
+  switch (object) {
+    case 0:
+    case "EASY":
+      return WordChoice.EASY;
+    case 1:
+    case "HARD":
+      return WordChoice.HARD;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return WordChoice.UNRECOGNIZED;
+  }
+}
+
+export function wordChoiceToJSON(object: WordChoice): string {
+  switch (object) {
+    case WordChoice.EASY:
+      return "EASY";
+    case WordChoice.HARD:
+      return "HARD";
+    case WordChoice.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export enum ColorType {
+  PRIMARY = 0,
+  SECONDARY = 1,
+  UNRECOGNIZED = -1,
+}
+
+export function colorTypeFromJSON(object: any): ColorType {
+  switch (object) {
+    case 0:
+    case "PRIMARY":
+      return ColorType.PRIMARY;
+    case 1:
+    case "SECONDARY":
+      return ColorType.SECONDARY;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return ColorType.UNRECOGNIZED;
+  }
+}
+
+export function colorTypeToJSON(object: ColorType): string {
+  switch (object) {
+    case ColorType.PRIMARY:
+      return "PRIMARY";
+    case ColorType.SECONDARY:
+      return "SECONDARY";
+    case ColorType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export enum SeErrorType {
   UNKNOWN = 0,
   ALREADY_CONNECTED = 1,
@@ -50,6 +161,7 @@ export function seErrorTypeToJSON(object: SeErrorType): string {
 
 export interface Game {
   players: { [key: number]: Player };
+  round: Round | undefined;
 }
 
 export interface Game_PlayersEntry {
@@ -60,7 +172,76 @@ export interface Game_PlayersEntry {
 export interface Player {
   name: string;
   score: number;
+  drawerScore: number;
+  guesserScore: number;
   connected: boolean;
+}
+
+export interface Round {
+  roundId: number;
+  phase: Phase;
+  drawer: number;
+  drawing: DrawOperation[];
+  easyWord: string;
+  hardWord: string;
+  wordChoice: WordChoice;
+  drawingScore: number;
+  guessingScore: number;
+  guesses: Guess[];
+  hints: Hint[];
+}
+
+export interface Guess {
+  guesser: number;
+  guess: string;
+  afterDrawOps: number;
+}
+
+export interface Hint {
+  revealLength?: RevealLength | undefined;
+  revealLetter?: RevealLetter | undefined;
+  afterDrawOps: number;
+}
+
+export interface RevealLength {
+}
+
+export interface RevealLetter {
+  index: number;
+}
+
+export interface DrawOperation {
+  setColor?: DoSetColor | undefined;
+  startStroke?: DoStartStroke | undefined;
+  continueStroke?: DoContinueStroke | undefined;
+  clearScreen?: DoClearScreen | undefined;
+  undo?: DoUndo | undefined;
+  redo?: DoRedo | undefined;
+}
+
+export interface DoSetColor {
+  colorType: ColorType;
+  color: string;
+}
+
+export interface DoStartStroke {
+  colorType: ColorType;
+  x: number;
+  y: number;
+}
+
+export interface DoContinueStroke {
+  x: number;
+  y: number;
+}
+
+export interface DoClearScreen {
+}
+
+export interface DoUndo {
+}
+
+export interface DoRedo {
 }
 
 export interface SeSetGame {
@@ -97,7 +278,45 @@ export interface SePlayerRename {
 
 export interface SePlayerIncreaseScore {
   id: number;
-  score: number;
+  increaseBy: number;
+}
+
+export interface SePlayerIncreaseDrawerScore {
+  id: number;
+  increaseBy: number;
+}
+
+export interface SePlayerIncreaseGuesserScore {
+  id: number;
+  increaseBy: number;
+}
+
+export interface SePlayerDrawOperation {
+  id: number;
+  drawOp: DrawOperation | undefined;
+}
+
+export interface SeNewRound {
+  roundId: number;
+  drawer: number;
+  easyWord: string;
+  hardWord: string;
+}
+
+export interface SePlayerChooseWord {
+  drawer: number;
+  choice: WordChoice;
+}
+
+export interface SePlayerGuessWord {
+  guesser: number;
+  guess: string;
+  afterDrawOps: number;
+}
+
+export interface SePlayerLikeRound {
+  liker: number;
+  roundId: number;
 }
 
 export interface ServerEvent {
@@ -105,10 +324,17 @@ export interface ServerEvent {
   playerLeave?: SePlayerLeave | undefined;
   playerRename?: SePlayerRename | undefined;
   playerIncreaseScore?: SePlayerIncreaseScore | undefined;
+  playerIncreaseDrawerScore?: SePlayerIncreaseDrawerScore | undefined;
+  playerIncreaseGuesserScore?: SePlayerIncreaseGuesserScore | undefined;
   setGame?: SeSetGame | undefined;
   error?: SeError | undefined;
   playerConnect?: SePlayerConnect | undefined;
   playerDisconnect?: SePlayerDisconnect | undefined;
+  playerDrawOp?: SePlayerDrawOperation | undefined;
+  newRound?: SeNewRound | undefined;
+  playerChooseWord?: SePlayerChooseWord | undefined;
+  playerGuessWord?: SePlayerGuessWord | undefined;
+  playerLikeRound?: SePlayerLikeRound | undefined;
 }
 
 export interface ServerEvents {
@@ -119,17 +345,33 @@ export interface CeRename {
   name: string;
 }
 
-export interface CeIncreaseScore {
-  score: number;
+export interface CeChooseWord {
+  choice: WordChoice;
+}
+
+export interface CeGuessWord {
+  guess: string;
+  afterDrawOps: number;
+}
+
+export interface CeLikeRound {
+  roundId: number;
+}
+
+export interface CeDrawOperation {
+  drawOp: DrawOperation | undefined;
 }
 
 export interface ClientEvent {
   rename?: CeRename | undefined;
-  increaseScore?: CeIncreaseScore | undefined;
+  chooseWord?: CeChooseWord | undefined;
+  guessWord?: CeGuessWord | undefined;
+  likeRound?: CeLikeRound | undefined;
+  drawOp?: CeDrawOperation | undefined;
 }
 
 function createBaseGame(): Game {
-  return { players: {} };
+  return { players: {}, round: undefined };
 }
 
 export const Game: MessageFns<Game> = {
@@ -137,6 +379,9 @@ export const Game: MessageFns<Game> = {
     Object.entries(message.players).forEach(([key, value]) => {
       Game_PlayersEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
     });
+    if (message.round !== undefined) {
+      Round.encode(message.round, writer.uint32(18).fork()).join();
+    }
     return writer;
   },
 
@@ -158,6 +403,14 @@ export const Game: MessageFns<Game> = {
           }
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.round = Round.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -175,6 +428,7 @@ export const Game: MessageFns<Game> = {
           return acc;
         }, {})
         : {},
+      round: isSet(object.round) ? Round.fromJSON(object.round) : undefined,
     };
   },
 
@@ -188,6 +442,9 @@ export const Game: MessageFns<Game> = {
           obj.players[k] = Player.toJSON(v);
         });
       }
+    }
+    if (message.round !== undefined) {
+      obj.round = Round.toJSON(message.round);
     }
     return obj;
   },
@@ -203,6 +460,7 @@ export const Game: MessageFns<Game> = {
       }
       return acc;
     }, {});
+    message.round = (object.round !== undefined && object.round !== null) ? Round.fromPartial(object.round) : undefined;
     return message;
   },
 };
@@ -286,7 +544,7 @@ export const Game_PlayersEntry: MessageFns<Game_PlayersEntry> = {
 };
 
 function createBasePlayer(): Player {
-  return { name: "", score: 0, connected: false };
+  return { name: "", score: 0, drawerScore: 0, guesserScore: 0, connected: false };
 }
 
 export const Player: MessageFns<Player> = {
@@ -297,8 +555,14 @@ export const Player: MessageFns<Player> = {
     if (message.score !== 0) {
       writer.uint32(16).uint32(message.score);
     }
+    if (message.drawerScore !== 0) {
+      writer.uint32(24).uint32(message.drawerScore);
+    }
+    if (message.guesserScore !== 0) {
+      writer.uint32(32).uint32(message.guesserScore);
+    }
     if (message.connected !== false) {
-      writer.uint32(24).bool(message.connected);
+      writer.uint32(40).bool(message.connected);
     }
     return writer;
   },
@@ -331,6 +595,22 @@ export const Player: MessageFns<Player> = {
             break;
           }
 
+          message.drawerScore = reader.uint32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.guesserScore = reader.uint32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
           message.connected = reader.bool();
           continue;
         }
@@ -347,6 +627,8 @@ export const Player: MessageFns<Player> = {
     return {
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       score: isSet(object.score) ? globalThis.Number(object.score) : 0,
+      drawerScore: isSet(object.drawerScore) ? globalThis.Number(object.drawerScore) : 0,
+      guesserScore: isSet(object.guesserScore) ? globalThis.Number(object.guesserScore) : 0,
       connected: isSet(object.connected) ? globalThis.Boolean(object.connected) : false,
     };
   },
@@ -358,6 +640,12 @@ export const Player: MessageFns<Player> = {
     }
     if (message.score !== 0) {
       obj.score = Math.round(message.score);
+    }
+    if (message.drawerScore !== 0) {
+      obj.drawerScore = Math.round(message.drawerScore);
+    }
+    if (message.guesserScore !== 0) {
+      obj.guesserScore = Math.round(message.guesserScore);
     }
     if (message.connected !== false) {
       obj.connected = message.connected;
@@ -372,7 +660,1060 @@ export const Player: MessageFns<Player> = {
     const message = createBasePlayer();
     message.name = object.name ?? "";
     message.score = object.score ?? 0;
+    message.drawerScore = object.drawerScore ?? 0;
+    message.guesserScore = object.guesserScore ?? 0;
     message.connected = object.connected ?? false;
+    return message;
+  },
+};
+
+function createBaseRound(): Round {
+  return {
+    roundId: 0,
+    phase: 0,
+    drawer: 0,
+    drawing: [],
+    easyWord: "",
+    hardWord: "",
+    wordChoice: 0,
+    drawingScore: 0,
+    guessingScore: 0,
+    guesses: [],
+    hints: [],
+  };
+}
+
+export const Round: MessageFns<Round> = {
+  encode(message: Round, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.roundId !== 0) {
+      writer.uint32(8).uint32(message.roundId);
+    }
+    if (message.phase !== 0) {
+      writer.uint32(80).int32(message.phase);
+    }
+    if (message.drawer !== 0) {
+      writer.uint32(16).uint32(message.drawer);
+    }
+    for (const v of message.drawing) {
+      DrawOperation.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.easyWord !== "") {
+      writer.uint32(34).string(message.easyWord);
+    }
+    if (message.hardWord !== "") {
+      writer.uint32(42).string(message.hardWord);
+    }
+    if (message.wordChoice !== 0) {
+      writer.uint32(88).int32(message.wordChoice);
+    }
+    if (message.drawingScore !== 0) {
+      writer.uint32(48).uint32(message.drawingScore);
+    }
+    if (message.guessingScore !== 0) {
+      writer.uint32(56).uint32(message.guessingScore);
+    }
+    for (const v of message.guesses) {
+      Guess.encode(v!, writer.uint32(66).fork()).join();
+    }
+    for (const v of message.hints) {
+      Hint.encode(v!, writer.uint32(74).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Round {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRound();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.roundId = reader.uint32();
+          continue;
+        }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.phase = reader.int32() as any;
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.drawer = reader.uint32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.drawing.push(DrawOperation.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.easyWord = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.hardWord = reader.string();
+          continue;
+        }
+        case 11: {
+          if (tag !== 88) {
+            break;
+          }
+
+          message.wordChoice = reader.int32() as any;
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.drawingScore = reader.uint32();
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.guessingScore = reader.uint32();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.guesses.push(Guess.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.hints.push(Hint.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Round {
+    return {
+      roundId: isSet(object.roundId) ? globalThis.Number(object.roundId) : 0,
+      phase: isSet(object.phase) ? phaseFromJSON(object.phase) : 0,
+      drawer: isSet(object.drawer) ? globalThis.Number(object.drawer) : 0,
+      drawing: globalThis.Array.isArray(object?.drawing)
+        ? object.drawing.map((e: any) => DrawOperation.fromJSON(e))
+        : [],
+      easyWord: isSet(object.easyWord) ? globalThis.String(object.easyWord) : "",
+      hardWord: isSet(object.hardWord) ? globalThis.String(object.hardWord) : "",
+      wordChoice: isSet(object.wordChoice) ? wordChoiceFromJSON(object.wordChoice) : 0,
+      drawingScore: isSet(object.drawingScore) ? globalThis.Number(object.drawingScore) : 0,
+      guessingScore: isSet(object.guessingScore) ? globalThis.Number(object.guessingScore) : 0,
+      guesses: globalThis.Array.isArray(object?.guesses) ? object.guesses.map((e: any) => Guess.fromJSON(e)) : [],
+      hints: globalThis.Array.isArray(object?.hints) ? object.hints.map((e: any) => Hint.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: Round): unknown {
+    const obj: any = {};
+    if (message.roundId !== 0) {
+      obj.roundId = Math.round(message.roundId);
+    }
+    if (message.phase !== 0) {
+      obj.phase = phaseToJSON(message.phase);
+    }
+    if (message.drawer !== 0) {
+      obj.drawer = Math.round(message.drawer);
+    }
+    if (message.drawing?.length) {
+      obj.drawing = message.drawing.map((e) => DrawOperation.toJSON(e));
+    }
+    if (message.easyWord !== "") {
+      obj.easyWord = message.easyWord;
+    }
+    if (message.hardWord !== "") {
+      obj.hardWord = message.hardWord;
+    }
+    if (message.wordChoice !== 0) {
+      obj.wordChoice = wordChoiceToJSON(message.wordChoice);
+    }
+    if (message.drawingScore !== 0) {
+      obj.drawingScore = Math.round(message.drawingScore);
+    }
+    if (message.guessingScore !== 0) {
+      obj.guessingScore = Math.round(message.guessingScore);
+    }
+    if (message.guesses?.length) {
+      obj.guesses = message.guesses.map((e) => Guess.toJSON(e));
+    }
+    if (message.hints?.length) {
+      obj.hints = message.hints.map((e) => Hint.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Round>, I>>(base?: I): Round {
+    return Round.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Round>, I>>(object: I): Round {
+    const message = createBaseRound();
+    message.roundId = object.roundId ?? 0;
+    message.phase = object.phase ?? 0;
+    message.drawer = object.drawer ?? 0;
+    message.drawing = object.drawing?.map((e) => DrawOperation.fromPartial(e)) || [];
+    message.easyWord = object.easyWord ?? "";
+    message.hardWord = object.hardWord ?? "";
+    message.wordChoice = object.wordChoice ?? 0;
+    message.drawingScore = object.drawingScore ?? 0;
+    message.guessingScore = object.guessingScore ?? 0;
+    message.guesses = object.guesses?.map((e) => Guess.fromPartial(e)) || [];
+    message.hints = object.hints?.map((e) => Hint.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseGuess(): Guess {
+  return { guesser: 0, guess: "", afterDrawOps: 0 };
+}
+
+export const Guess: MessageFns<Guess> = {
+  encode(message: Guess, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.guesser !== 0) {
+      writer.uint32(8).uint32(message.guesser);
+    }
+    if (message.guess !== "") {
+      writer.uint32(18).string(message.guess);
+    }
+    if (message.afterDrawOps !== 0) {
+      writer.uint32(24).uint32(message.afterDrawOps);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Guess {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGuess();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.guesser = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.guess = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.afterDrawOps = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Guess {
+    return {
+      guesser: isSet(object.guesser) ? globalThis.Number(object.guesser) : 0,
+      guess: isSet(object.guess) ? globalThis.String(object.guess) : "",
+      afterDrawOps: isSet(object.afterDrawOps) ? globalThis.Number(object.afterDrawOps) : 0,
+    };
+  },
+
+  toJSON(message: Guess): unknown {
+    const obj: any = {};
+    if (message.guesser !== 0) {
+      obj.guesser = Math.round(message.guesser);
+    }
+    if (message.guess !== "") {
+      obj.guess = message.guess;
+    }
+    if (message.afterDrawOps !== 0) {
+      obj.afterDrawOps = Math.round(message.afterDrawOps);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Guess>, I>>(base?: I): Guess {
+    return Guess.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Guess>, I>>(object: I): Guess {
+    const message = createBaseGuess();
+    message.guesser = object.guesser ?? 0;
+    message.guess = object.guess ?? "";
+    message.afterDrawOps = object.afterDrawOps ?? 0;
+    return message;
+  },
+};
+
+function createBaseHint(): Hint {
+  return { revealLength: undefined, revealLetter: undefined, afterDrawOps: 0 };
+}
+
+export const Hint: MessageFns<Hint> = {
+  encode(message: Hint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.revealLength !== undefined) {
+      RevealLength.encode(message.revealLength, writer.uint32(10).fork()).join();
+    }
+    if (message.revealLetter !== undefined) {
+      RevealLetter.encode(message.revealLetter, writer.uint32(18).fork()).join();
+    }
+    if (message.afterDrawOps !== 0) {
+      writer.uint32(24).uint32(message.afterDrawOps);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Hint {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHint();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.revealLength = RevealLength.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.revealLetter = RevealLetter.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.afterDrawOps = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Hint {
+    return {
+      revealLength: isSet(object.revealLength) ? RevealLength.fromJSON(object.revealLength) : undefined,
+      revealLetter: isSet(object.revealLetter) ? RevealLetter.fromJSON(object.revealLetter) : undefined,
+      afterDrawOps: isSet(object.afterDrawOps) ? globalThis.Number(object.afterDrawOps) : 0,
+    };
+  },
+
+  toJSON(message: Hint): unknown {
+    const obj: any = {};
+    if (message.revealLength !== undefined) {
+      obj.revealLength = RevealLength.toJSON(message.revealLength);
+    }
+    if (message.revealLetter !== undefined) {
+      obj.revealLetter = RevealLetter.toJSON(message.revealLetter);
+    }
+    if (message.afterDrawOps !== 0) {
+      obj.afterDrawOps = Math.round(message.afterDrawOps);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Hint>, I>>(base?: I): Hint {
+    return Hint.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Hint>, I>>(object: I): Hint {
+    const message = createBaseHint();
+    message.revealLength = (object.revealLength !== undefined && object.revealLength !== null)
+      ? RevealLength.fromPartial(object.revealLength)
+      : undefined;
+    message.revealLetter = (object.revealLetter !== undefined && object.revealLetter !== null)
+      ? RevealLetter.fromPartial(object.revealLetter)
+      : undefined;
+    message.afterDrawOps = object.afterDrawOps ?? 0;
+    return message;
+  },
+};
+
+function createBaseRevealLength(): RevealLength {
+  return {};
+}
+
+export const RevealLength: MessageFns<RevealLength> = {
+  encode(_: RevealLength, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RevealLength {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRevealLength();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): RevealLength {
+    return {};
+  },
+
+  toJSON(_: RevealLength): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RevealLength>, I>>(base?: I): RevealLength {
+    return RevealLength.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RevealLength>, I>>(_: I): RevealLength {
+    const message = createBaseRevealLength();
+    return message;
+  },
+};
+
+function createBaseRevealLetter(): RevealLetter {
+  return { index: 0 };
+}
+
+export const RevealLetter: MessageFns<RevealLetter> = {
+  encode(message: RevealLetter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.index !== 0) {
+      writer.uint32(8).uint32(message.index);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RevealLetter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRevealLetter();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.index = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RevealLetter {
+    return { index: isSet(object.index) ? globalThis.Number(object.index) : 0 };
+  },
+
+  toJSON(message: RevealLetter): unknown {
+    const obj: any = {};
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RevealLetter>, I>>(base?: I): RevealLetter {
+    return RevealLetter.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RevealLetter>, I>>(object: I): RevealLetter {
+    const message = createBaseRevealLetter();
+    message.index = object.index ?? 0;
+    return message;
+  },
+};
+
+function createBaseDrawOperation(): DrawOperation {
+  return {
+    setColor: undefined,
+    startStroke: undefined,
+    continueStroke: undefined,
+    clearScreen: undefined,
+    undo: undefined,
+    redo: undefined,
+  };
+}
+
+export const DrawOperation: MessageFns<DrawOperation> = {
+  encode(message: DrawOperation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.setColor !== undefined) {
+      DoSetColor.encode(message.setColor, writer.uint32(10).fork()).join();
+    }
+    if (message.startStroke !== undefined) {
+      DoStartStroke.encode(message.startStroke, writer.uint32(18).fork()).join();
+    }
+    if (message.continueStroke !== undefined) {
+      DoContinueStroke.encode(message.continueStroke, writer.uint32(26).fork()).join();
+    }
+    if (message.clearScreen !== undefined) {
+      DoClearScreen.encode(message.clearScreen, writer.uint32(34).fork()).join();
+    }
+    if (message.undo !== undefined) {
+      DoUndo.encode(message.undo, writer.uint32(42).fork()).join();
+    }
+    if (message.redo !== undefined) {
+      DoRedo.encode(message.redo, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DrawOperation {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDrawOperation();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.setColor = DoSetColor.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.startStroke = DoStartStroke.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.continueStroke = DoContinueStroke.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.clearScreen = DoClearScreen.decode(reader, reader.uint32());
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.undo = DoUndo.decode(reader, reader.uint32());
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.redo = DoRedo.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DrawOperation {
+    return {
+      setColor: isSet(object.setColor) ? DoSetColor.fromJSON(object.setColor) : undefined,
+      startStroke: isSet(object.startStroke) ? DoStartStroke.fromJSON(object.startStroke) : undefined,
+      continueStroke: isSet(object.continueStroke) ? DoContinueStroke.fromJSON(object.continueStroke) : undefined,
+      clearScreen: isSet(object.clearScreen) ? DoClearScreen.fromJSON(object.clearScreen) : undefined,
+      undo: isSet(object.undo) ? DoUndo.fromJSON(object.undo) : undefined,
+      redo: isSet(object.redo) ? DoRedo.fromJSON(object.redo) : undefined,
+    };
+  },
+
+  toJSON(message: DrawOperation): unknown {
+    const obj: any = {};
+    if (message.setColor !== undefined) {
+      obj.setColor = DoSetColor.toJSON(message.setColor);
+    }
+    if (message.startStroke !== undefined) {
+      obj.startStroke = DoStartStroke.toJSON(message.startStroke);
+    }
+    if (message.continueStroke !== undefined) {
+      obj.continueStroke = DoContinueStroke.toJSON(message.continueStroke);
+    }
+    if (message.clearScreen !== undefined) {
+      obj.clearScreen = DoClearScreen.toJSON(message.clearScreen);
+    }
+    if (message.undo !== undefined) {
+      obj.undo = DoUndo.toJSON(message.undo);
+    }
+    if (message.redo !== undefined) {
+      obj.redo = DoRedo.toJSON(message.redo);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DrawOperation>, I>>(base?: I): DrawOperation {
+    return DrawOperation.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DrawOperation>, I>>(object: I): DrawOperation {
+    const message = createBaseDrawOperation();
+    message.setColor = (object.setColor !== undefined && object.setColor !== null)
+      ? DoSetColor.fromPartial(object.setColor)
+      : undefined;
+    message.startStroke = (object.startStroke !== undefined && object.startStroke !== null)
+      ? DoStartStroke.fromPartial(object.startStroke)
+      : undefined;
+    message.continueStroke = (object.continueStroke !== undefined && object.continueStroke !== null)
+      ? DoContinueStroke.fromPartial(object.continueStroke)
+      : undefined;
+    message.clearScreen = (object.clearScreen !== undefined && object.clearScreen !== null)
+      ? DoClearScreen.fromPartial(object.clearScreen)
+      : undefined;
+    message.undo = (object.undo !== undefined && object.undo !== null) ? DoUndo.fromPartial(object.undo) : undefined;
+    message.redo = (object.redo !== undefined && object.redo !== null) ? DoRedo.fromPartial(object.redo) : undefined;
+    return message;
+  },
+};
+
+function createBaseDoSetColor(): DoSetColor {
+  return { colorType: 0, color: "" };
+}
+
+export const DoSetColor: MessageFns<DoSetColor> = {
+  encode(message: DoSetColor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.colorType !== 0) {
+      writer.uint32(8).int32(message.colorType);
+    }
+    if (message.color !== "") {
+      writer.uint32(18).string(message.color);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DoSetColor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDoSetColor();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.colorType = reader.int32() as any;
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.color = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DoSetColor {
+    return {
+      colorType: isSet(object.colorType) ? colorTypeFromJSON(object.colorType) : 0,
+      color: isSet(object.color) ? globalThis.String(object.color) : "",
+    };
+  },
+
+  toJSON(message: DoSetColor): unknown {
+    const obj: any = {};
+    if (message.colorType !== 0) {
+      obj.colorType = colorTypeToJSON(message.colorType);
+    }
+    if (message.color !== "") {
+      obj.color = message.color;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DoSetColor>, I>>(base?: I): DoSetColor {
+    return DoSetColor.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DoSetColor>, I>>(object: I): DoSetColor {
+    const message = createBaseDoSetColor();
+    message.colorType = object.colorType ?? 0;
+    message.color = object.color ?? "";
+    return message;
+  },
+};
+
+function createBaseDoStartStroke(): DoStartStroke {
+  return { colorType: 0, x: 0, y: 0 };
+}
+
+export const DoStartStroke: MessageFns<DoStartStroke> = {
+  encode(message: DoStartStroke, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.colorType !== 0) {
+      writer.uint32(8).int32(message.colorType);
+    }
+    if (message.x !== 0) {
+      writer.uint32(21).float(message.x);
+    }
+    if (message.y !== 0) {
+      writer.uint32(29).float(message.y);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DoStartStroke {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDoStartStroke();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.colorType = reader.int32() as any;
+          continue;
+        }
+        case 2: {
+          if (tag !== 21) {
+            break;
+          }
+
+          message.x = reader.float();
+          continue;
+        }
+        case 3: {
+          if (tag !== 29) {
+            break;
+          }
+
+          message.y = reader.float();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DoStartStroke {
+    return {
+      colorType: isSet(object.colorType) ? colorTypeFromJSON(object.colorType) : 0,
+      x: isSet(object.x) ? globalThis.Number(object.x) : 0,
+      y: isSet(object.y) ? globalThis.Number(object.y) : 0,
+    };
+  },
+
+  toJSON(message: DoStartStroke): unknown {
+    const obj: any = {};
+    if (message.colorType !== 0) {
+      obj.colorType = colorTypeToJSON(message.colorType);
+    }
+    if (message.x !== 0) {
+      obj.x = message.x;
+    }
+    if (message.y !== 0) {
+      obj.y = message.y;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DoStartStroke>, I>>(base?: I): DoStartStroke {
+    return DoStartStroke.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DoStartStroke>, I>>(object: I): DoStartStroke {
+    const message = createBaseDoStartStroke();
+    message.colorType = object.colorType ?? 0;
+    message.x = object.x ?? 0;
+    message.y = object.y ?? 0;
+    return message;
+  },
+};
+
+function createBaseDoContinueStroke(): DoContinueStroke {
+  return { x: 0, y: 0 };
+}
+
+export const DoContinueStroke: MessageFns<DoContinueStroke> = {
+  encode(message: DoContinueStroke, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.x !== 0) {
+      writer.uint32(13).float(message.x);
+    }
+    if (message.y !== 0) {
+      writer.uint32(21).float(message.y);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DoContinueStroke {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDoContinueStroke();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 13) {
+            break;
+          }
+
+          message.x = reader.float();
+          continue;
+        }
+        case 2: {
+          if (tag !== 21) {
+            break;
+          }
+
+          message.y = reader.float();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DoContinueStroke {
+    return {
+      x: isSet(object.x) ? globalThis.Number(object.x) : 0,
+      y: isSet(object.y) ? globalThis.Number(object.y) : 0,
+    };
+  },
+
+  toJSON(message: DoContinueStroke): unknown {
+    const obj: any = {};
+    if (message.x !== 0) {
+      obj.x = message.x;
+    }
+    if (message.y !== 0) {
+      obj.y = message.y;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DoContinueStroke>, I>>(base?: I): DoContinueStroke {
+    return DoContinueStroke.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DoContinueStroke>, I>>(object: I): DoContinueStroke {
+    const message = createBaseDoContinueStroke();
+    message.x = object.x ?? 0;
+    message.y = object.y ?? 0;
+    return message;
+  },
+};
+
+function createBaseDoClearScreen(): DoClearScreen {
+  return {};
+}
+
+export const DoClearScreen: MessageFns<DoClearScreen> = {
+  encode(_: DoClearScreen, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DoClearScreen {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDoClearScreen();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): DoClearScreen {
+    return {};
+  },
+
+  toJSON(_: DoClearScreen): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DoClearScreen>, I>>(base?: I): DoClearScreen {
+    return DoClearScreen.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DoClearScreen>, I>>(_: I): DoClearScreen {
+    const message = createBaseDoClearScreen();
+    return message;
+  },
+};
+
+function createBaseDoUndo(): DoUndo {
+  return {};
+}
+
+export const DoUndo: MessageFns<DoUndo> = {
+  encode(_: DoUndo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DoUndo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDoUndo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): DoUndo {
+    return {};
+  },
+
+  toJSON(_: DoUndo): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DoUndo>, I>>(base?: I): DoUndo {
+    return DoUndo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DoUndo>, I>>(_: I): DoUndo {
+    const message = createBaseDoUndo();
+    return message;
+  },
+};
+
+function createBaseDoRedo(): DoRedo {
+  return {};
+}
+
+export const DoRedo: MessageFns<DoRedo> = {
+  encode(_: DoRedo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DoRedo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDoRedo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): DoRedo {
+    return {};
+  },
+
+  toJSON(_: DoRedo): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DoRedo>, I>>(base?: I): DoRedo {
+    return DoRedo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DoRedo>, I>>(_: I): DoRedo {
+    const message = createBaseDoRedo();
     return message;
   },
 };
@@ -856,7 +2197,7 @@ export const SePlayerRename: MessageFns<SePlayerRename> = {
 };
 
 function createBaseSePlayerIncreaseScore(): SePlayerIncreaseScore {
-  return { id: 0, score: 0 };
+  return { id: 0, increaseBy: 0 };
 }
 
 export const SePlayerIncreaseScore: MessageFns<SePlayerIncreaseScore> = {
@@ -864,8 +2205,8 @@ export const SePlayerIncreaseScore: MessageFns<SePlayerIncreaseScore> = {
     if (message.id !== 0) {
       writer.uint32(8).uint32(message.id);
     }
-    if (message.score !== 0) {
-      writer.uint32(16).uint32(message.score);
+    if (message.increaseBy !== 0) {
+      writer.uint32(16).uint32(message.increaseBy);
     }
     return writer;
   },
@@ -890,7 +2231,7 @@ export const SePlayerIncreaseScore: MessageFns<SePlayerIncreaseScore> = {
             break;
           }
 
-          message.score = reader.uint32();
+          message.increaseBy = reader.uint32();
           continue;
         }
       }
@@ -905,7 +2246,7 @@ export const SePlayerIncreaseScore: MessageFns<SePlayerIncreaseScore> = {
   fromJSON(object: any): SePlayerIncreaseScore {
     return {
       id: isSet(object.id) ? globalThis.Number(object.id) : 0,
-      score: isSet(object.score) ? globalThis.Number(object.score) : 0,
+      increaseBy: isSet(object.increaseBy) ? globalThis.Number(object.increaseBy) : 0,
     };
   },
 
@@ -914,8 +2255,8 @@ export const SePlayerIncreaseScore: MessageFns<SePlayerIncreaseScore> = {
     if (message.id !== 0) {
       obj.id = Math.round(message.id);
     }
-    if (message.score !== 0) {
-      obj.score = Math.round(message.score);
+    if (message.increaseBy !== 0) {
+      obj.increaseBy = Math.round(message.increaseBy);
     }
     return obj;
   },
@@ -926,7 +2267,589 @@ export const SePlayerIncreaseScore: MessageFns<SePlayerIncreaseScore> = {
   fromPartial<I extends Exact<DeepPartial<SePlayerIncreaseScore>, I>>(object: I): SePlayerIncreaseScore {
     const message = createBaseSePlayerIncreaseScore();
     message.id = object.id ?? 0;
-    message.score = object.score ?? 0;
+    message.increaseBy = object.increaseBy ?? 0;
+    return message;
+  },
+};
+
+function createBaseSePlayerIncreaseDrawerScore(): SePlayerIncreaseDrawerScore {
+  return { id: 0, increaseBy: 0 };
+}
+
+export const SePlayerIncreaseDrawerScore: MessageFns<SePlayerIncreaseDrawerScore> = {
+  encode(message: SePlayerIncreaseDrawerScore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== 0) {
+      writer.uint32(8).uint32(message.id);
+    }
+    if (message.increaseBy !== 0) {
+      writer.uint32(16).uint32(message.increaseBy);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SePlayerIncreaseDrawerScore {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSePlayerIncreaseDrawerScore();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.id = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.increaseBy = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SePlayerIncreaseDrawerScore {
+    return {
+      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      increaseBy: isSet(object.increaseBy) ? globalThis.Number(object.increaseBy) : 0,
+    };
+  },
+
+  toJSON(message: SePlayerIncreaseDrawerScore): unknown {
+    const obj: any = {};
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.increaseBy !== 0) {
+      obj.increaseBy = Math.round(message.increaseBy);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SePlayerIncreaseDrawerScore>, I>>(base?: I): SePlayerIncreaseDrawerScore {
+    return SePlayerIncreaseDrawerScore.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SePlayerIncreaseDrawerScore>, I>>(object: I): SePlayerIncreaseDrawerScore {
+    const message = createBaseSePlayerIncreaseDrawerScore();
+    message.id = object.id ?? 0;
+    message.increaseBy = object.increaseBy ?? 0;
+    return message;
+  },
+};
+
+function createBaseSePlayerIncreaseGuesserScore(): SePlayerIncreaseGuesserScore {
+  return { id: 0, increaseBy: 0 };
+}
+
+export const SePlayerIncreaseGuesserScore: MessageFns<SePlayerIncreaseGuesserScore> = {
+  encode(message: SePlayerIncreaseGuesserScore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== 0) {
+      writer.uint32(8).uint32(message.id);
+    }
+    if (message.increaseBy !== 0) {
+      writer.uint32(16).uint32(message.increaseBy);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SePlayerIncreaseGuesserScore {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSePlayerIncreaseGuesserScore();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.id = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.increaseBy = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SePlayerIncreaseGuesserScore {
+    return {
+      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      increaseBy: isSet(object.increaseBy) ? globalThis.Number(object.increaseBy) : 0,
+    };
+  },
+
+  toJSON(message: SePlayerIncreaseGuesserScore): unknown {
+    const obj: any = {};
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.increaseBy !== 0) {
+      obj.increaseBy = Math.round(message.increaseBy);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SePlayerIncreaseGuesserScore>, I>>(base?: I): SePlayerIncreaseGuesserScore {
+    return SePlayerIncreaseGuesserScore.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SePlayerIncreaseGuesserScore>, I>>(object: I): SePlayerIncreaseGuesserScore {
+    const message = createBaseSePlayerIncreaseGuesserScore();
+    message.id = object.id ?? 0;
+    message.increaseBy = object.increaseBy ?? 0;
+    return message;
+  },
+};
+
+function createBaseSePlayerDrawOperation(): SePlayerDrawOperation {
+  return { id: 0, drawOp: undefined };
+}
+
+export const SePlayerDrawOperation: MessageFns<SePlayerDrawOperation> = {
+  encode(message: SePlayerDrawOperation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== 0) {
+      writer.uint32(8).uint32(message.id);
+    }
+    if (message.drawOp !== undefined) {
+      DrawOperation.encode(message.drawOp, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SePlayerDrawOperation {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSePlayerDrawOperation();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.id = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.drawOp = DrawOperation.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SePlayerDrawOperation {
+    return {
+      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      drawOp: isSet(object.drawOp) ? DrawOperation.fromJSON(object.drawOp) : undefined,
+    };
+  },
+
+  toJSON(message: SePlayerDrawOperation): unknown {
+    const obj: any = {};
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.drawOp !== undefined) {
+      obj.drawOp = DrawOperation.toJSON(message.drawOp);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SePlayerDrawOperation>, I>>(base?: I): SePlayerDrawOperation {
+    return SePlayerDrawOperation.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SePlayerDrawOperation>, I>>(object: I): SePlayerDrawOperation {
+    const message = createBaseSePlayerDrawOperation();
+    message.id = object.id ?? 0;
+    message.drawOp = (object.drawOp !== undefined && object.drawOp !== null)
+      ? DrawOperation.fromPartial(object.drawOp)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSeNewRound(): SeNewRound {
+  return { roundId: 0, drawer: 0, easyWord: "", hardWord: "" };
+}
+
+export const SeNewRound: MessageFns<SeNewRound> = {
+  encode(message: SeNewRound, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.roundId !== 0) {
+      writer.uint32(8).uint32(message.roundId);
+    }
+    if (message.drawer !== 0) {
+      writer.uint32(16).uint32(message.drawer);
+    }
+    if (message.easyWord !== "") {
+      writer.uint32(26).string(message.easyWord);
+    }
+    if (message.hardWord !== "") {
+      writer.uint32(34).string(message.hardWord);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SeNewRound {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSeNewRound();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.roundId = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.drawer = reader.uint32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.easyWord = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.hardWord = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SeNewRound {
+    return {
+      roundId: isSet(object.roundId) ? globalThis.Number(object.roundId) : 0,
+      drawer: isSet(object.drawer) ? globalThis.Number(object.drawer) : 0,
+      easyWord: isSet(object.easyWord) ? globalThis.String(object.easyWord) : "",
+      hardWord: isSet(object.hardWord) ? globalThis.String(object.hardWord) : "",
+    };
+  },
+
+  toJSON(message: SeNewRound): unknown {
+    const obj: any = {};
+    if (message.roundId !== 0) {
+      obj.roundId = Math.round(message.roundId);
+    }
+    if (message.drawer !== 0) {
+      obj.drawer = Math.round(message.drawer);
+    }
+    if (message.easyWord !== "") {
+      obj.easyWord = message.easyWord;
+    }
+    if (message.hardWord !== "") {
+      obj.hardWord = message.hardWord;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SeNewRound>, I>>(base?: I): SeNewRound {
+    return SeNewRound.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SeNewRound>, I>>(object: I): SeNewRound {
+    const message = createBaseSeNewRound();
+    message.roundId = object.roundId ?? 0;
+    message.drawer = object.drawer ?? 0;
+    message.easyWord = object.easyWord ?? "";
+    message.hardWord = object.hardWord ?? "";
+    return message;
+  },
+};
+
+function createBaseSePlayerChooseWord(): SePlayerChooseWord {
+  return { drawer: 0, choice: 0 };
+}
+
+export const SePlayerChooseWord: MessageFns<SePlayerChooseWord> = {
+  encode(message: SePlayerChooseWord, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.drawer !== 0) {
+      writer.uint32(8).uint32(message.drawer);
+    }
+    if (message.choice !== 0) {
+      writer.uint32(16).int32(message.choice);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SePlayerChooseWord {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSePlayerChooseWord();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.drawer = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.choice = reader.int32() as any;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SePlayerChooseWord {
+    return {
+      drawer: isSet(object.drawer) ? globalThis.Number(object.drawer) : 0,
+      choice: isSet(object.choice) ? wordChoiceFromJSON(object.choice) : 0,
+    };
+  },
+
+  toJSON(message: SePlayerChooseWord): unknown {
+    const obj: any = {};
+    if (message.drawer !== 0) {
+      obj.drawer = Math.round(message.drawer);
+    }
+    if (message.choice !== 0) {
+      obj.choice = wordChoiceToJSON(message.choice);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SePlayerChooseWord>, I>>(base?: I): SePlayerChooseWord {
+    return SePlayerChooseWord.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SePlayerChooseWord>, I>>(object: I): SePlayerChooseWord {
+    const message = createBaseSePlayerChooseWord();
+    message.drawer = object.drawer ?? 0;
+    message.choice = object.choice ?? 0;
+    return message;
+  },
+};
+
+function createBaseSePlayerGuessWord(): SePlayerGuessWord {
+  return { guesser: 0, guess: "", afterDrawOps: 0 };
+}
+
+export const SePlayerGuessWord: MessageFns<SePlayerGuessWord> = {
+  encode(message: SePlayerGuessWord, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.guesser !== 0) {
+      writer.uint32(8).uint32(message.guesser);
+    }
+    if (message.guess !== "") {
+      writer.uint32(18).string(message.guess);
+    }
+    if (message.afterDrawOps !== 0) {
+      writer.uint32(24).uint32(message.afterDrawOps);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SePlayerGuessWord {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSePlayerGuessWord();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.guesser = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.guess = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.afterDrawOps = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SePlayerGuessWord {
+    return {
+      guesser: isSet(object.guesser) ? globalThis.Number(object.guesser) : 0,
+      guess: isSet(object.guess) ? globalThis.String(object.guess) : "",
+      afterDrawOps: isSet(object.afterDrawOps) ? globalThis.Number(object.afterDrawOps) : 0,
+    };
+  },
+
+  toJSON(message: SePlayerGuessWord): unknown {
+    const obj: any = {};
+    if (message.guesser !== 0) {
+      obj.guesser = Math.round(message.guesser);
+    }
+    if (message.guess !== "") {
+      obj.guess = message.guess;
+    }
+    if (message.afterDrawOps !== 0) {
+      obj.afterDrawOps = Math.round(message.afterDrawOps);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SePlayerGuessWord>, I>>(base?: I): SePlayerGuessWord {
+    return SePlayerGuessWord.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SePlayerGuessWord>, I>>(object: I): SePlayerGuessWord {
+    const message = createBaseSePlayerGuessWord();
+    message.guesser = object.guesser ?? 0;
+    message.guess = object.guess ?? "";
+    message.afterDrawOps = object.afterDrawOps ?? 0;
+    return message;
+  },
+};
+
+function createBaseSePlayerLikeRound(): SePlayerLikeRound {
+  return { liker: 0, roundId: 0 };
+}
+
+export const SePlayerLikeRound: MessageFns<SePlayerLikeRound> = {
+  encode(message: SePlayerLikeRound, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.liker !== 0) {
+      writer.uint32(8).uint32(message.liker);
+    }
+    if (message.roundId !== 0) {
+      writer.uint32(16).uint32(message.roundId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SePlayerLikeRound {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSePlayerLikeRound();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.liker = reader.uint32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.roundId = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SePlayerLikeRound {
+    return {
+      liker: isSet(object.liker) ? globalThis.Number(object.liker) : 0,
+      roundId: isSet(object.roundId) ? globalThis.Number(object.roundId) : 0,
+    };
+  },
+
+  toJSON(message: SePlayerLikeRound): unknown {
+    const obj: any = {};
+    if (message.liker !== 0) {
+      obj.liker = Math.round(message.liker);
+    }
+    if (message.roundId !== 0) {
+      obj.roundId = Math.round(message.roundId);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SePlayerLikeRound>, I>>(base?: I): SePlayerLikeRound {
+    return SePlayerLikeRound.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SePlayerLikeRound>, I>>(object: I): SePlayerLikeRound {
+    const message = createBaseSePlayerLikeRound();
+    message.liker = object.liker ?? 0;
+    message.roundId = object.roundId ?? 0;
     return message;
   },
 };
@@ -937,10 +2860,17 @@ function createBaseServerEvent(): ServerEvent {
     playerLeave: undefined,
     playerRename: undefined,
     playerIncreaseScore: undefined,
+    playerIncreaseDrawerScore: undefined,
+    playerIncreaseGuesserScore: undefined,
     setGame: undefined,
     error: undefined,
     playerConnect: undefined,
     playerDisconnect: undefined,
+    playerDrawOp: undefined,
+    newRound: undefined,
+    playerChooseWord: undefined,
+    playerGuessWord: undefined,
+    playerLikeRound: undefined,
   };
 }
 
@@ -958,6 +2888,12 @@ export const ServerEvent: MessageFns<ServerEvent> = {
     if (message.playerIncreaseScore !== undefined) {
       SePlayerIncreaseScore.encode(message.playerIncreaseScore, writer.uint32(34).fork()).join();
     }
+    if (message.playerIncreaseDrawerScore !== undefined) {
+      SePlayerIncreaseDrawerScore.encode(message.playerIncreaseDrawerScore, writer.uint32(82).fork()).join();
+    }
+    if (message.playerIncreaseGuesserScore !== undefined) {
+      SePlayerIncreaseGuesserScore.encode(message.playerIncreaseGuesserScore, writer.uint32(90).fork()).join();
+    }
     if (message.setGame !== undefined) {
       SeSetGame.encode(message.setGame, writer.uint32(42).fork()).join();
     }
@@ -969,6 +2905,21 @@ export const ServerEvent: MessageFns<ServerEvent> = {
     }
     if (message.playerDisconnect !== undefined) {
       SePlayerDisconnect.encode(message.playerDisconnect, writer.uint32(66).fork()).join();
+    }
+    if (message.playerDrawOp !== undefined) {
+      SePlayerDrawOperation.encode(message.playerDrawOp, writer.uint32(74).fork()).join();
+    }
+    if (message.newRound !== undefined) {
+      SeNewRound.encode(message.newRound, writer.uint32(98).fork()).join();
+    }
+    if (message.playerChooseWord !== undefined) {
+      SePlayerChooseWord.encode(message.playerChooseWord, writer.uint32(106).fork()).join();
+    }
+    if (message.playerGuessWord !== undefined) {
+      SePlayerGuessWord.encode(message.playerGuessWord, writer.uint32(114).fork()).join();
+    }
+    if (message.playerLikeRound !== undefined) {
+      SePlayerLikeRound.encode(message.playerLikeRound, writer.uint32(122).fork()).join();
     }
     return writer;
   },
@@ -1012,6 +2963,22 @@ export const ServerEvent: MessageFns<ServerEvent> = {
           message.playerIncreaseScore = SePlayerIncreaseScore.decode(reader, reader.uint32());
           continue;
         }
+        case 10: {
+          if (tag !== 82) {
+            break;
+          }
+
+          message.playerIncreaseDrawerScore = SePlayerIncreaseDrawerScore.decode(reader, reader.uint32());
+          continue;
+        }
+        case 11: {
+          if (tag !== 90) {
+            break;
+          }
+
+          message.playerIncreaseGuesserScore = SePlayerIncreaseGuesserScore.decode(reader, reader.uint32());
+          continue;
+        }
         case 5: {
           if (tag !== 42) {
             break;
@@ -1044,6 +3011,46 @@ export const ServerEvent: MessageFns<ServerEvent> = {
           message.playerDisconnect = SePlayerDisconnect.decode(reader, reader.uint32());
           continue;
         }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.playerDrawOp = SePlayerDrawOperation.decode(reader, reader.uint32());
+          continue;
+        }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.newRound = SeNewRound.decode(reader, reader.uint32());
+          continue;
+        }
+        case 13: {
+          if (tag !== 106) {
+            break;
+          }
+
+          message.playerChooseWord = SePlayerChooseWord.decode(reader, reader.uint32());
+          continue;
+        }
+        case 14: {
+          if (tag !== 114) {
+            break;
+          }
+
+          message.playerGuessWord = SePlayerGuessWord.decode(reader, reader.uint32());
+          continue;
+        }
+        case 15: {
+          if (tag !== 122) {
+            break;
+          }
+
+          message.playerLikeRound = SePlayerLikeRound.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1061,12 +3068,25 @@ export const ServerEvent: MessageFns<ServerEvent> = {
       playerIncreaseScore: isSet(object.playerIncreaseScore)
         ? SePlayerIncreaseScore.fromJSON(object.playerIncreaseScore)
         : undefined,
+      playerIncreaseDrawerScore: isSet(object.playerIncreaseDrawerScore)
+        ? SePlayerIncreaseDrawerScore.fromJSON(object.playerIncreaseDrawerScore)
+        : undefined,
+      playerIncreaseGuesserScore: isSet(object.playerIncreaseGuesserScore)
+        ? SePlayerIncreaseGuesserScore.fromJSON(object.playerIncreaseGuesserScore)
+        : undefined,
       setGame: isSet(object.setGame) ? SeSetGame.fromJSON(object.setGame) : undefined,
       error: isSet(object.error) ? SeError.fromJSON(object.error) : undefined,
       playerConnect: isSet(object.playerConnect) ? SePlayerConnect.fromJSON(object.playerConnect) : undefined,
       playerDisconnect: isSet(object.playerDisconnect)
         ? SePlayerDisconnect.fromJSON(object.playerDisconnect)
         : undefined,
+      playerDrawOp: isSet(object.playerDrawOp) ? SePlayerDrawOperation.fromJSON(object.playerDrawOp) : undefined,
+      newRound: isSet(object.newRound) ? SeNewRound.fromJSON(object.newRound) : undefined,
+      playerChooseWord: isSet(object.playerChooseWord)
+        ? SePlayerChooseWord.fromJSON(object.playerChooseWord)
+        : undefined,
+      playerGuessWord: isSet(object.playerGuessWord) ? SePlayerGuessWord.fromJSON(object.playerGuessWord) : undefined,
+      playerLikeRound: isSet(object.playerLikeRound) ? SePlayerLikeRound.fromJSON(object.playerLikeRound) : undefined,
     };
   },
 
@@ -1084,6 +3104,12 @@ export const ServerEvent: MessageFns<ServerEvent> = {
     if (message.playerIncreaseScore !== undefined) {
       obj.playerIncreaseScore = SePlayerIncreaseScore.toJSON(message.playerIncreaseScore);
     }
+    if (message.playerIncreaseDrawerScore !== undefined) {
+      obj.playerIncreaseDrawerScore = SePlayerIncreaseDrawerScore.toJSON(message.playerIncreaseDrawerScore);
+    }
+    if (message.playerIncreaseGuesserScore !== undefined) {
+      obj.playerIncreaseGuesserScore = SePlayerIncreaseGuesserScore.toJSON(message.playerIncreaseGuesserScore);
+    }
     if (message.setGame !== undefined) {
       obj.setGame = SeSetGame.toJSON(message.setGame);
     }
@@ -1095,6 +3121,21 @@ export const ServerEvent: MessageFns<ServerEvent> = {
     }
     if (message.playerDisconnect !== undefined) {
       obj.playerDisconnect = SePlayerDisconnect.toJSON(message.playerDisconnect);
+    }
+    if (message.playerDrawOp !== undefined) {
+      obj.playerDrawOp = SePlayerDrawOperation.toJSON(message.playerDrawOp);
+    }
+    if (message.newRound !== undefined) {
+      obj.newRound = SeNewRound.toJSON(message.newRound);
+    }
+    if (message.playerChooseWord !== undefined) {
+      obj.playerChooseWord = SePlayerChooseWord.toJSON(message.playerChooseWord);
+    }
+    if (message.playerGuessWord !== undefined) {
+      obj.playerGuessWord = SePlayerGuessWord.toJSON(message.playerGuessWord);
+    }
+    if (message.playerLikeRound !== undefined) {
+      obj.playerLikeRound = SePlayerLikeRound.toJSON(message.playerLikeRound);
     }
     return obj;
   },
@@ -1116,6 +3157,14 @@ export const ServerEvent: MessageFns<ServerEvent> = {
     message.playerIncreaseScore = (object.playerIncreaseScore !== undefined && object.playerIncreaseScore !== null)
       ? SePlayerIncreaseScore.fromPartial(object.playerIncreaseScore)
       : undefined;
+    message.playerIncreaseDrawerScore =
+      (object.playerIncreaseDrawerScore !== undefined && object.playerIncreaseDrawerScore !== null)
+        ? SePlayerIncreaseDrawerScore.fromPartial(object.playerIncreaseDrawerScore)
+        : undefined;
+    message.playerIncreaseGuesserScore =
+      (object.playerIncreaseGuesserScore !== undefined && object.playerIncreaseGuesserScore !== null)
+        ? SePlayerIncreaseGuesserScore.fromPartial(object.playerIncreaseGuesserScore)
+        : undefined;
     message.setGame = (object.setGame !== undefined && object.setGame !== null)
       ? SeSetGame.fromPartial(object.setGame)
       : undefined;
@@ -1127,6 +3176,21 @@ export const ServerEvent: MessageFns<ServerEvent> = {
       : undefined;
     message.playerDisconnect = (object.playerDisconnect !== undefined && object.playerDisconnect !== null)
       ? SePlayerDisconnect.fromPartial(object.playerDisconnect)
+      : undefined;
+    message.playerDrawOp = (object.playerDrawOp !== undefined && object.playerDrawOp !== null)
+      ? SePlayerDrawOperation.fromPartial(object.playerDrawOp)
+      : undefined;
+    message.newRound = (object.newRound !== undefined && object.newRound !== null)
+      ? SeNewRound.fromPartial(object.newRound)
+      : undefined;
+    message.playerChooseWord = (object.playerChooseWord !== undefined && object.playerChooseWord !== null)
+      ? SePlayerChooseWord.fromPartial(object.playerChooseWord)
+      : undefined;
+    message.playerGuessWord = (object.playerGuessWord !== undefined && object.playerGuessWord !== null)
+      ? SePlayerGuessWord.fromPartial(object.playerGuessWord)
+      : undefined;
+    message.playerLikeRound = (object.playerLikeRound !== undefined && object.playerLikeRound !== null)
+      ? SePlayerLikeRound.fromPartial(object.playerLikeRound)
       : undefined;
     return message;
   },
@@ -1250,22 +3314,22 @@ export const CeRename: MessageFns<CeRename> = {
   },
 };
 
-function createBaseCeIncreaseScore(): CeIncreaseScore {
-  return { score: 0 };
+function createBaseCeChooseWord(): CeChooseWord {
+  return { choice: 0 };
 }
 
-export const CeIncreaseScore: MessageFns<CeIncreaseScore> = {
-  encode(message: CeIncreaseScore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.score !== 0) {
-      writer.uint32(8).uint32(message.score);
+export const CeChooseWord: MessageFns<CeChooseWord> = {
+  encode(message: CeChooseWord, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.choice !== 0) {
+      writer.uint32(8).int32(message.choice);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): CeIncreaseScore {
+  decode(input: BinaryReader | Uint8Array, length?: number): CeChooseWord {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCeIncreaseScore();
+    const message = createBaseCeChooseWord();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1274,7 +3338,7 @@ export const CeIncreaseScore: MessageFns<CeIncreaseScore> = {
             break;
           }
 
-          message.score = reader.uint32();
+          message.choice = reader.int32() as any;
           continue;
         }
       }
@@ -1286,30 +3350,224 @@ export const CeIncreaseScore: MessageFns<CeIncreaseScore> = {
     return message;
   },
 
-  fromJSON(object: any): CeIncreaseScore {
-    return { score: isSet(object.score) ? globalThis.Number(object.score) : 0 };
+  fromJSON(object: any): CeChooseWord {
+    return { choice: isSet(object.choice) ? wordChoiceFromJSON(object.choice) : 0 };
   },
 
-  toJSON(message: CeIncreaseScore): unknown {
+  toJSON(message: CeChooseWord): unknown {
     const obj: any = {};
-    if (message.score !== 0) {
-      obj.score = Math.round(message.score);
+    if (message.choice !== 0) {
+      obj.choice = wordChoiceToJSON(message.choice);
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<CeIncreaseScore>, I>>(base?: I): CeIncreaseScore {
-    return CeIncreaseScore.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<CeChooseWord>, I>>(base?: I): CeChooseWord {
+    return CeChooseWord.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<CeIncreaseScore>, I>>(object: I): CeIncreaseScore {
-    const message = createBaseCeIncreaseScore();
-    message.score = object.score ?? 0;
+  fromPartial<I extends Exact<DeepPartial<CeChooseWord>, I>>(object: I): CeChooseWord {
+    const message = createBaseCeChooseWord();
+    message.choice = object.choice ?? 0;
+    return message;
+  },
+};
+
+function createBaseCeGuessWord(): CeGuessWord {
+  return { guess: "", afterDrawOps: 0 };
+}
+
+export const CeGuessWord: MessageFns<CeGuessWord> = {
+  encode(message: CeGuessWord, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.guess !== "") {
+      writer.uint32(10).string(message.guess);
+    }
+    if (message.afterDrawOps !== 0) {
+      writer.uint32(24).uint32(message.afterDrawOps);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CeGuessWord {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCeGuessWord();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.guess = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.afterDrawOps = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CeGuessWord {
+    return {
+      guess: isSet(object.guess) ? globalThis.String(object.guess) : "",
+      afterDrawOps: isSet(object.afterDrawOps) ? globalThis.Number(object.afterDrawOps) : 0,
+    };
+  },
+
+  toJSON(message: CeGuessWord): unknown {
+    const obj: any = {};
+    if (message.guess !== "") {
+      obj.guess = message.guess;
+    }
+    if (message.afterDrawOps !== 0) {
+      obj.afterDrawOps = Math.round(message.afterDrawOps);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CeGuessWord>, I>>(base?: I): CeGuessWord {
+    return CeGuessWord.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CeGuessWord>, I>>(object: I): CeGuessWord {
+    const message = createBaseCeGuessWord();
+    message.guess = object.guess ?? "";
+    message.afterDrawOps = object.afterDrawOps ?? 0;
+    return message;
+  },
+};
+
+function createBaseCeLikeRound(): CeLikeRound {
+  return { roundId: 0 };
+}
+
+export const CeLikeRound: MessageFns<CeLikeRound> = {
+  encode(message: CeLikeRound, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.roundId !== 0) {
+      writer.uint32(8).uint32(message.roundId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CeLikeRound {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCeLikeRound();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.roundId = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CeLikeRound {
+    return { roundId: isSet(object.roundId) ? globalThis.Number(object.roundId) : 0 };
+  },
+
+  toJSON(message: CeLikeRound): unknown {
+    const obj: any = {};
+    if (message.roundId !== 0) {
+      obj.roundId = Math.round(message.roundId);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CeLikeRound>, I>>(base?: I): CeLikeRound {
+    return CeLikeRound.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CeLikeRound>, I>>(object: I): CeLikeRound {
+    const message = createBaseCeLikeRound();
+    message.roundId = object.roundId ?? 0;
+    return message;
+  },
+};
+
+function createBaseCeDrawOperation(): CeDrawOperation {
+  return { drawOp: undefined };
+}
+
+export const CeDrawOperation: MessageFns<CeDrawOperation> = {
+  encode(message: CeDrawOperation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.drawOp !== undefined) {
+      DrawOperation.encode(message.drawOp, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CeDrawOperation {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCeDrawOperation();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.drawOp = DrawOperation.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CeDrawOperation {
+    return { drawOp: isSet(object.drawOp) ? DrawOperation.fromJSON(object.drawOp) : undefined };
+  },
+
+  toJSON(message: CeDrawOperation): unknown {
+    const obj: any = {};
+    if (message.drawOp !== undefined) {
+      obj.drawOp = DrawOperation.toJSON(message.drawOp);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CeDrawOperation>, I>>(base?: I): CeDrawOperation {
+    return CeDrawOperation.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CeDrawOperation>, I>>(object: I): CeDrawOperation {
+    const message = createBaseCeDrawOperation();
+    message.drawOp = (object.drawOp !== undefined && object.drawOp !== null)
+      ? DrawOperation.fromPartial(object.drawOp)
+      : undefined;
     return message;
   },
 };
 
 function createBaseClientEvent(): ClientEvent {
-  return { rename: undefined, increaseScore: undefined };
+  return { rename: undefined, chooseWord: undefined, guessWord: undefined, likeRound: undefined, drawOp: undefined };
 }
 
 export const ClientEvent: MessageFns<ClientEvent> = {
@@ -1317,8 +3575,17 @@ export const ClientEvent: MessageFns<ClientEvent> = {
     if (message.rename !== undefined) {
       CeRename.encode(message.rename, writer.uint32(10).fork()).join();
     }
-    if (message.increaseScore !== undefined) {
-      CeIncreaseScore.encode(message.increaseScore, writer.uint32(18).fork()).join();
+    if (message.chooseWord !== undefined) {
+      CeChooseWord.encode(message.chooseWord, writer.uint32(18).fork()).join();
+    }
+    if (message.guessWord !== undefined) {
+      CeGuessWord.encode(message.guessWord, writer.uint32(26).fork()).join();
+    }
+    if (message.likeRound !== undefined) {
+      CeLikeRound.encode(message.likeRound, writer.uint32(34).fork()).join();
+    }
+    if (message.drawOp !== undefined) {
+      CeDrawOperation.encode(message.drawOp, writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -1343,7 +3610,31 @@ export const ClientEvent: MessageFns<ClientEvent> = {
             break;
           }
 
-          message.increaseScore = CeIncreaseScore.decode(reader, reader.uint32());
+          message.chooseWord = CeChooseWord.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.guessWord = CeGuessWord.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.likeRound = CeLikeRound.decode(reader, reader.uint32());
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.drawOp = CeDrawOperation.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -1358,7 +3649,10 @@ export const ClientEvent: MessageFns<ClientEvent> = {
   fromJSON(object: any): ClientEvent {
     return {
       rename: isSet(object.rename) ? CeRename.fromJSON(object.rename) : undefined,
-      increaseScore: isSet(object.increaseScore) ? CeIncreaseScore.fromJSON(object.increaseScore) : undefined,
+      chooseWord: isSet(object.chooseWord) ? CeChooseWord.fromJSON(object.chooseWord) : undefined,
+      guessWord: isSet(object.guessWord) ? CeGuessWord.fromJSON(object.guessWord) : undefined,
+      likeRound: isSet(object.likeRound) ? CeLikeRound.fromJSON(object.likeRound) : undefined,
+      drawOp: isSet(object.drawOp) ? CeDrawOperation.fromJSON(object.drawOp) : undefined,
     };
   },
 
@@ -1367,8 +3661,17 @@ export const ClientEvent: MessageFns<ClientEvent> = {
     if (message.rename !== undefined) {
       obj.rename = CeRename.toJSON(message.rename);
     }
-    if (message.increaseScore !== undefined) {
-      obj.increaseScore = CeIncreaseScore.toJSON(message.increaseScore);
+    if (message.chooseWord !== undefined) {
+      obj.chooseWord = CeChooseWord.toJSON(message.chooseWord);
+    }
+    if (message.guessWord !== undefined) {
+      obj.guessWord = CeGuessWord.toJSON(message.guessWord);
+    }
+    if (message.likeRound !== undefined) {
+      obj.likeRound = CeLikeRound.toJSON(message.likeRound);
+    }
+    if (message.drawOp !== undefined) {
+      obj.drawOp = CeDrawOperation.toJSON(message.drawOp);
     }
     return obj;
   },
@@ -1381,8 +3684,17 @@ export const ClientEvent: MessageFns<ClientEvent> = {
     message.rename = (object.rename !== undefined && object.rename !== null)
       ? CeRename.fromPartial(object.rename)
       : undefined;
-    message.increaseScore = (object.increaseScore !== undefined && object.increaseScore !== null)
-      ? CeIncreaseScore.fromPartial(object.increaseScore)
+    message.chooseWord = (object.chooseWord !== undefined && object.chooseWord !== null)
+      ? CeChooseWord.fromPartial(object.chooseWord)
+      : undefined;
+    message.guessWord = (object.guessWord !== undefined && object.guessWord !== null)
+      ? CeGuessWord.fromPartial(object.guessWord)
+      : undefined;
+    message.likeRound = (object.likeRound !== undefined && object.likeRound !== null)
+      ? CeLikeRound.fromPartial(object.likeRound)
+      : undefined;
+    message.drawOp = (object.drawOp !== undefined && object.drawOp !== null)
+      ? CeDrawOperation.fromPartial(object.drawOp)
       : undefined;
     return message;
   },

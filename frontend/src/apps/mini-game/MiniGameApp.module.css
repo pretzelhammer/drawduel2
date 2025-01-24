@@ -1,0 +1,22 @@
+.join-game {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.button__join-game {
+    margin-top: 1rem;
+    background-color: #fac7ff;
+}
+
+.button-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    justify-content: center;
+    align-items: center;
+}
+
+.button__new-game {
+    align-self: end;
+}

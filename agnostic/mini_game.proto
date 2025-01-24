@@ -6,13 +6,100 @@ package generated;
 
 message Game {
     map<uint32, Player> players = 1;
+    Round round = 2;
 }
 
 message Player {
     string name = 1;
     uint32 score = 2;
-	bool connected = 3;
+    uint32 drawer_score = 3;
+    uint32 guesser_score = 4;
+    bool connected = 5;
 }
+
+message Round {
+    uint32 round_id = 1;
+    Phase phase = 10;
+    uint32 drawer = 2;
+    repeated DrawOperation drawing = 3;
+    string easy_word = 4;
+    string hard_word = 5;
+    WordChoice word_choice = 11;
+    uint32 drawing_score = 6;
+    uint32 guessing_score = 7;
+    repeated Guess guesses = 8;
+    repeated Hint hints = 9;
+}
+
+enum Phase {
+    CHOOSE_WORD = 0;
+    PRE_PLAY = 1;
+    PLAY = 2;
+    POST_PLAY = 3;
+}
+
+enum WordChoice {
+    EASY = 0;
+    HARD = 1;
+}
+
+message Guess {
+    uint32 guesser = 1;
+    string guess = 2;
+    uint32 after_draw_ops = 3;
+}
+
+message Hint {
+    oneof hint_type {
+        RevealLength reveal_length = 1;
+        RevealLetter reveal_letter = 2;
+    }
+    uint32 after_draw_ops = 3;
+}
+
+message RevealLength {}
+
+message RevealLetter {
+    uint32 index = 1;
+}
+
+message DrawOperation {
+    oneof do_type {
+        DoSetColor set_color = 1;
+        DoStartStroke start_stroke = 2;
+        DoContinueStroke continue_stroke = 3;
+        DoClearScreen clear_screen = 4;
+        DoUndo undo = 5;
+        DoRedo redo = 6;
+    }
+}
+
+enum ColorType {
+    PRIMARY = 0;
+    SECONDARY = 1;
+}
+
+message DoSetColor {
+    ColorType color_type = 1;
+    string color = 2;
+}
+
+message DoStartStroke {
+    ColorType color_type = 1;
+    float x = 2;
+    float y = 3;
+}
+
+message DoContinueStroke {
+    float x = 1;
+    float y = 2;
+}
+
+message DoClearScreen {}
+
+message DoUndo {}
+
+message DoRedo {}
 
 // SERVER EVENTS
 // Se = [S]erver [e]vent
@@ -60,7 +147,45 @@ message SePlayerRename {
 
 message SePlayerIncreaseScore {
     uint32 id = 1;
-    uint32 score = 2;
+    uint32 increase_by = 2;
+}
+
+message SePlayerIncreaseDrawerScore {
+    uint32 id = 1;
+    uint32 increase_by = 2;
+}
+
+message SePlayerIncreaseGuesserScore {
+    uint32 id = 1;
+    uint32 increase_by = 2;
+}
+
+message SePlayerDrawOperation {
+    uint32 id = 1;
+    DrawOperation draw_op = 2;
+}
+
+message SeNewRound {
+    uint32 round_id = 1;
+    uint32 drawer = 2;
+    string easy_word = 3;
+    string hard_word = 4;
+}
+
+message SePlayerChooseWord {
+    uint32 drawer = 1;
+    WordChoice choice = 2;
+}
+
+message SePlayerGuessWord {
+    uint32 guesser = 1;
+    string guess = 2;
+    uint32 after_draw_ops = 3;
+}
+
+message SePlayerLikeRound {
+    uint32 liker = 1;
+    uint32 round_id = 2;
 }
 
 message ServerEvent {
@@ -69,10 +194,17 @@ message ServerEvent {
         SePlayerLeave player_leave = 2;
         SePlayerRename player_rename = 3;
         SePlayerIncreaseScore player_increase_score = 4;
+        SePlayerIncreaseDrawerScore player_increase_drawer_score = 10;
+        SePlayerIncreaseGuesserScore player_increase_guesser_score = 11;
         SeSetGame set_game = 5;
         SeError error = 6;
         SePlayerConnect player_connect = 7;
         SePlayerDisconnect player_disconnect = 8;
+        SePlayerDrawOperation player_draw_op = 9;
+        SeNewRound new_round = 12;
+        SePlayerChooseWord player_choose_word = 13;
+        SePlayerGuessWord player_guess_word = 14;
+        SePlayerLikeRound player_like_round = 15;
     }
 }
 
@@ -88,13 +220,30 @@ message CeRename {
     string name = 1;
 }
 
-message CeIncreaseScore {
-    uint32 score = 1;
+message CeChooseWord {
+    WordChoice choice = 1;
 }
+
+message CeGuessWord {
+    string guess = 1;
+    uint32 after_draw_ops = 3;
+}
+
+message CeLikeRound {
+    uint32 round_id = 1;
+}
+
+message CeDrawOperation {
+    DrawOperation draw_op = 1;
+}
+
 
 message ClientEvent {
     oneof ce_type {
         CeRename rename = 1;
-        CeIncreaseScore increase_score = 2;
+        CeChooseWord choose_word = 2;
+        CeGuessWord guess_word = 3;
+        CeLikeRound like_round = 4;
+        CeDrawOperation draw_op = 5;
     }
 }

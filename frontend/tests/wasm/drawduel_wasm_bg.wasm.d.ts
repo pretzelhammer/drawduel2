@@ -1,7 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export const add: (a: number, b: number) => number;
 export const client_advance: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const server_advance: (a: number, b: number, c: number, d: number, e: number) => void;
 export const __wbindgen_export_0: (a: number, b: number) => number;

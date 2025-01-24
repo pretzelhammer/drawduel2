@@ -42,10 +42,26 @@ export function advanceGame(serverEvent: ServerEvent, game: Game): Game {
             game.players[playerRename.id].name = playerRename.name;
         }
     } else if (serverEvent.playerIncreaseScore) {
-        let playerIncreaseScore = serverEvent.playerIncreaseScore;
-        if (game.players[playerIncreaseScore.id]) {
-            game.players[playerIncreaseScore.id].score =
-                playerIncreaseScore.score;
+        let increaseScore = serverEvent.playerIncreaseScore;
+        if (game.players[increaseScore.id]) {
+            game.players[increaseScore.id].score += increaseScore.increaseBy;
+        }
+    } else if (serverEvent.playerIncreaseGuesserScore) {
+        let increaseScore = serverEvent.playerIncreaseGuesserScore;
+        if (game.players[increaseScore.id]) {
+            game.players[increaseScore.id].guesserScore +=
+                increaseScore.increaseBy;
+        }
+    } else if (serverEvent.playerIncreaseDrawerScore) {
+        let increaseScore = serverEvent.playerIncreaseDrawerScore;
+        if (game.players[increaseScore.id]) {
+            game.players[increaseScore.id].drawerScore +=
+                increaseScore.increaseBy;
+        }
+    } else if (serverEvent.playerDrawOp) {
+        let drawOperation = serverEvent.playerDrawOp;
+        if (game.drawing!.byPlayer == drawOperation.id) {
+            game.drawing!.drawOps.push(drawOperation.drawOp!);
         }
     } else {
         // no-op

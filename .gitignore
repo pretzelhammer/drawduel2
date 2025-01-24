@@ -255,3 +255,5 @@ $RECYCLE.BIN
 # .pnp.*
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,rust-analyzer,linux,macos,windows,node,yarn
+
+*.untracked

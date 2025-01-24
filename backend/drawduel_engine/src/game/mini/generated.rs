@@ -6,6 +6,8 @@
 pub struct Game {
     #[prost(map="uint32, message", tag="1")]
     pub players: ::std::collections::HashMap<u32, Player>,
+    #[prost(message, optional, tag="2")]
+    pub round: ::core::option::Option<Round>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Player {
@@ -13,8 +15,126 @@ pub struct Player {
     pub name: ::prost::alloc::string::String,
     #[prost(uint32, tag="2")]
     pub score: u32,
-    #[prost(bool, tag="3")]
+    #[prost(uint32, tag="3")]
+    pub drawer_score: u32,
+    #[prost(uint32, tag="4")]
+    pub guesser_score: u32,
+    #[prost(bool, tag="5")]
     pub connected: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Round {
+    #[prost(uint32, tag="1")]
+    pub round_id: u32,
+    #[prost(enumeration="Phase", tag="10")]
+    pub phase: i32,
+    #[prost(uint32, tag="2")]
+    pub drawer: u32,
+    #[prost(message, repeated, tag="3")]
+    pub drawing: ::prost::alloc::vec::Vec<DrawOperation>,
+    #[prost(string, tag="4")]
+    pub easy_word: ::prost::alloc::string::String,
+    #[prost(string, tag="5")]
+    pub hard_word: ::prost::alloc::string::String,
+    #[prost(enumeration="WordChoice", tag="11")]
+    pub word_choice: i32,
+    #[prost(uint32, tag="6")]
+    pub drawing_score: u32,
+    #[prost(uint32, tag="7")]
+    pub guessing_score: u32,
+    #[prost(message, repeated, tag="8")]
+    pub guesses: ::prost::alloc::vec::Vec<Guess>,
+    #[prost(message, repeated, tag="9")]
+    pub hints: ::prost::alloc::vec::Vec<Hint>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Guess {
+    #[prost(uint32, tag="1")]
+    pub guesser: u32,
+    #[prost(string, tag="2")]
+    pub guess: ::prost::alloc::string::String,
+    #[prost(uint32, tag="3")]
+    pub after_draw_ops: u32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct Hint {
+    #[prost(uint32, tag="3")]
+    pub after_draw_ops: u32,
+    #[prost(oneof="hint::HintType", tags="1, 2")]
+    pub hint_type: ::core::option::Option<hint::HintType>,
+}
+/// Nested message and enum types in `Hint`.
+pub mod hint {
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    pub enum HintType {
+        #[prost(message, tag="1")]
+        RevealLength(super::RevealLength),
+        #[prost(message, tag="2")]
+        RevealLetter(super::RevealLetter),
+    }
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct RevealLength {
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct RevealLetter {
+    #[prost(uint32, tag="1")]
+    pub index: u32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DrawOperation {
+    #[prost(oneof="draw_operation::DoType", tags="1, 2, 3, 4, 5, 6")]
+    pub do_type: ::core::option::Option<draw_operation::DoType>,
+}
+/// Nested message and enum types in `DrawOperation`.
+pub mod draw_operation {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum DoType {
+        #[prost(message, tag="1")]
+        SetColor(super::DoSetColor),
+        #[prost(message, tag="2")]
+        StartStroke(super::DoStartStroke),
+        #[prost(message, tag="3")]
+        ContinueStroke(super::DoContinueStroke),
+        #[prost(message, tag="4")]
+        ClearScreen(super::DoClearScreen),
+        #[prost(message, tag="5")]
+        Undo(super::DoUndo),
+        #[prost(message, tag="6")]
+        Redo(super::DoRedo),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DoSetColor {
+    #[prost(enumeration="ColorType", tag="1")]
+    pub color_type: i32,
+    #[prost(string, tag="2")]
+    pub color: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DoStartStroke {
+    #[prost(enumeration="ColorType", tag="1")]
+    pub color_type: i32,
+    #[prost(float, tag="2")]
+    pub x: f32,
+    #[prost(float, tag="3")]
+    pub y: f32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DoContinueStroke {
+    #[prost(float, tag="1")]
+    pub x: f32,
+    #[prost(float, tag="2")]
+    pub y: f32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DoClearScreen {
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DoUndo {
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DoRedo {
 }
 // SERVER EVENTS
 // Se = \[S\]erver \[e\]vent
@@ -70,11 +190,66 @@ pub struct SePlayerIncreaseScore {
     #[prost(uint32, tag="1")]
     pub id: u32,
     #[prost(uint32, tag="2")]
-    pub score: u32,
+    pub increase_by: u32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SePlayerIncreaseDrawerScore {
+    #[prost(uint32, tag="1")]
+    pub id: u32,
+    #[prost(uint32, tag="2")]
+    pub increase_by: u32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SePlayerIncreaseGuesserScore {
+    #[prost(uint32, tag="1")]
+    pub id: u32,
+    #[prost(uint32, tag="2")]
+    pub increase_by: u32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SePlayerDrawOperation {
+    #[prost(uint32, tag="1")]
+    pub id: u32,
+    #[prost(message, optional, tag="2")]
+    pub draw_op: ::core::option::Option<DrawOperation>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SeNewRound {
+    #[prost(uint32, tag="1")]
+    pub round_id: u32,
+    #[prost(uint32, tag="2")]
+    pub drawer: u32,
+    #[prost(string, tag="3")]
+    pub easy_word: ::prost::alloc::string::String,
+    #[prost(string, tag="4")]
+    pub hard_word: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SePlayerChooseWord {
+    #[prost(uint32, tag="1")]
+    pub drawer: u32,
+    #[prost(enumeration="WordChoice", tag="2")]
+    pub choice: i32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SePlayerGuessWord {
+    #[prost(uint32, tag="1")]
+    pub guesser: u32,
+    #[prost(string, tag="2")]
+    pub guess: ::prost::alloc::string::String,
+    #[prost(uint32, tag="3")]
+    pub after_draw_ops: u32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SePlayerLikeRound {
+    #[prost(uint32, tag="1")]
+    pub liker: u32,
+    #[prost(uint32, tag="2")]
+    pub round_id: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerEvent {
-    #[prost(oneof="server_event::SeType", tags="1, 2, 3, 4, 5, 6, 7, 8")]
+    #[prost(oneof="server_event::SeType", tags="1, 2, 3, 4, 10, 11, 5, 6, 7, 8, 9, 12, 13, 14, 15")]
     pub se_type: ::core::option::Option<server_event::SeType>,
 }
 /// Nested message and enum types in `ServerEvent`.
@@ -89,6 +264,10 @@ pub mod server_event {
         PlayerRename(super::SePlayerRename),
         #[prost(message, tag="4")]
         PlayerIncreaseScore(super::SePlayerIncreaseScore),
+        #[prost(message, tag="10")]
+        PlayerIncreaseDrawerScore(super::SePlayerIncreaseDrawerScore),
+        #[prost(message, tag="11")]
+        PlayerIncreaseGuesserScore(super::SePlayerIncreaseGuesserScore),
         #[prost(message, tag="5")]
         SetGame(super::SeSetGame),
         #[prost(message, tag="6")]
@@ -97,6 +276,16 @@ pub mod server_event {
         PlayerConnect(super::SePlayerConnect),
         #[prost(message, tag="8")]
         PlayerDisconnect(super::SePlayerDisconnect),
+        #[prost(message, tag="9")]
+        PlayerDrawOp(super::SePlayerDrawOperation),
+        #[prost(message, tag="12")]
+        NewRound(super::SeNewRound),
+        #[prost(message, tag="13")]
+        PlayerChooseWord(super::SePlayerChooseWord),
+        #[prost(message, tag="14")]
+        PlayerGuessWord(super::SePlayerGuessWord),
+        #[prost(message, tag="15")]
+        PlayerLikeRound(super::SePlayerLikeRound),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -114,13 +303,30 @@ pub struct CeRename {
     pub name: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CeIncreaseScore {
+pub struct CeChooseWord {
+    #[prost(enumeration="WordChoice", tag="1")]
+    pub choice: i32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CeGuessWord {
+    #[prost(string, tag="1")]
+    pub guess: ::prost::alloc::string::String,
+    #[prost(uint32, tag="3")]
+    pub after_draw_ops: u32,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CeLikeRound {
     #[prost(uint32, tag="1")]
-    pub score: u32,
+    pub round_id: u32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CeDrawOperation {
+    #[prost(message, optional, tag="1")]
+    pub draw_op: ::core::option::Option<DrawOperation>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientEvent {
-    #[prost(oneof="client_event::CeType", tags="1, 2")]
+    #[prost(oneof="client_event::CeType", tags="1, 2, 3, 4, 5")]
     pub ce_type: ::core::option::Option<client_event::CeType>,
 }
 /// Nested message and enum types in `ClientEvent`.
@@ -130,7 +336,97 @@ pub mod client_event {
         #[prost(message, tag="1")]
         Rename(super::CeRename),
         #[prost(message, tag="2")]
-        IncreaseScore(super::CeIncreaseScore),
+        ChooseWord(super::CeChooseWord),
+        #[prost(message, tag="3")]
+        GuessWord(super::CeGuessWord),
+        #[prost(message, tag="4")]
+        LikeRound(super::CeLikeRound),
+        #[prost(message, tag="5")]
+        DrawOp(super::CeDrawOperation),
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum Phase {
+    ChooseWord = 0,
+    PrePlay = 1,
+    Play = 2,
+    PostPlay = 3,
+}
+impl Phase {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::ChooseWord => "CHOOSE_WORD",
+            Self::PrePlay => "PRE_PLAY",
+            Self::Play => "PLAY",
+            Self::PostPlay => "POST_PLAY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CHOOSE_WORD" => Some(Self::ChooseWord),
+            "PRE_PLAY" => Some(Self::PrePlay),
+            "PLAY" => Some(Self::Play),
+            "POST_PLAY" => Some(Self::PostPlay),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum WordChoice {
+    Easy = 0,
+    Hard = 1,
+}
+impl WordChoice {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Easy => "EASY",
+            Self::Hard => "HARD",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "EASY" => Some(Self::Easy),
+            "HARD" => Some(Self::Hard),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ColorType {
+    Primary = 0,
+    Secondary = 1,
+}
+impl ColorType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Primary => "PRIMARY",
+            Self::Secondary => "SECONDARY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "PRIMARY" => Some(Self::Primary),
+            "SECONDARY" => Some(Self::Secondary),
+            _ => None,
+        }
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

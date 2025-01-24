@@ -115,15 +115,6 @@ function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
 }
-/**
- * @param {number} a
- * @param {number} b
- * @returns {number}
- */
-module.exports.add = function(a, b) {
-    const ret = wasm.add(a, b);
-    return ret;
-};
 
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;

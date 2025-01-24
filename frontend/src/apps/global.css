@@ -1,0 +1,137 @@
+/*
+	put stuff here that should be shared
+    across all apps, mostly root css vars
+*/
+
+:root {
+    font-family: Schoolbell, Inter, system-ui, Avenir, Helvetica, Arial,
+        sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-size: 16px;
+
+    --black: #101010;
+    --light-yellow: #fffad4;
+    --blue: #87e0ff;
+    --dark-blue: #2689ac;
+    --purple: #fac7ff;
+    --dark-purple: #ad55b6;
+
+    color: var(--black);
+    background-color: var(--light-yellow);
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* @media (prefers-color-scheme: dark) {
+    :root {
+        --light-yellow: #124da5;
+        --light-yellow: #072045;
+        color: white;
+    }
+} */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+}
+
+h1 {
+    font-size: 3.2em;
+    line-height: 1.1;
+    margin: 0.5em 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0.5em 0;
+}
+
+.button,
+button {
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    color: inherit;
+    border-radius: 8px;
+    padding: 0 48px;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: var(--blue);
+    cursor: pointer;
+    transition: background-color 0.25s;
+    box-shadow: -6px 6px var(--dark-blue);
+    border: none;
+    text-decoration: none;
+    width: fit-content;
+}
+.button.compact,
+button.compact {
+    padding: 0 16px;
+    height: 36px;
+}
+
+.button:active:not(:disabled),
+button:active:not(:disabled) {
+    box-shadow: -3px 3px var(--dark-blue);
+    transform: translate(-3px, 3px);
+}
+.button:focus-visible,
+button:focus-visible {
+    outline: 4px auto -webkit-focus-ring-color;
+}
+
+.button--purple {
+    background-color: var(--purple);
+    box-shadow: -6px 6px var(--dark-purple);
+}
+.button:active.button--purple:not(:disabled),
+button:active.button--purple:not(:disabled) {
+    box-shadow: -3px 3px var(--dark-purple);
+}
+
+button:disabled,
+.button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+input {
+    background-color: transparent;
+    border: 0;
+    font-size: 20px;
+    padding: 4px;
+    text-align: center;
+    outline: 0;
+    font-family: inherit;
+}
+
+table {
+    border-collapse: separate;
+    border-spacing: 8px;
+}
+
+th,
+td {
+    padding: 8px 12px;
+    text-align: left;
+}
+
+th {
+    font-size: 20px;
+}
