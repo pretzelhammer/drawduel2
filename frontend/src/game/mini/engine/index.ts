@@ -1,4 +1,12 @@
-import { Game, Player, ServerEvent, ServerEvents } from './mini_game';
+import {
+    Game,
+    Guess,
+    Phase,
+    Player,
+    ServerEvent,
+    ServerEvents,
+    WordChoice,
+} from './mini_game';
 
 export * from './mini_game';
 
@@ -22,6 +30,8 @@ export function advanceGame(serverEvent: ServerEvent, game: Game): Game {
             name: playerJoin.name,
             score: 0,
             connected: true,
+            drawerScore: 0,
+            guesserScore: 0,
         });
     } else if (serverEvent.playerLeave) {
         let playerLeave = serverEvent.playerLeave;
@@ -60,11 +70,37 @@ export function advanceGame(serverEvent: ServerEvent, game: Game): Game {
         }
     } else if (serverEvent.playerDrawOp) {
         let drawOperation = serverEvent.playerDrawOp;
-        if (game.drawing!.byPlayer == drawOperation.id) {
-            game.drawing!.drawOps.push(drawOperation.drawOp!);
+        if (game.round?.drawer == drawOperation.id) {
+            game.round?.drawing.push(drawOperation.drawOp!);
+        }
+    } else if (serverEvent.playerChooseWord) {
+        let playerChooseWord = serverEvent.playerChooseWord;
+        if (game.round?.drawer == playerChooseWord.drawer) {
+            game.round!.wordChoice = playerChooseWord.choice;
+        }
+    } else if (serverEvent.playerGuessWord) {
+        let playerGuessWord = serverEvent.playerGuessWord;
+        if (game.round?.drawer != playerGuessWord.guesser) {
+            game.round!.guesses.push(playerGuessWord);
+        }
+    } else if (serverEvent.newRound) {
+        let newRound = serverEvent.newRound;
+        if (newRound.roundId != game.round?.roundId) {
+            let round = game.round!;
+            round.roundId = newRound.roundId;
+            round.drawer = newRound.drawer;
+            round.easyWord = newRound.easyWord;
+            round.hardWord = newRound.hardWord;
+            round.phase = Phase.CHOOSE_WORD;
+            round.wordChoice = WordChoice.EASY;
+            round.drawing = [];
+            round.drawingScore = 0;
+            round.guessingScore = 0;
+            round.guesses = [];
+            round.hints = [];
         }
     } else {
-        // no-op
+        throw new Error('unimplemented server event type');
     }
     return game;
 }

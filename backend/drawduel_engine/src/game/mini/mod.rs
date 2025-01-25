@@ -28,12 +28,19 @@ impl Round {
             guessing_score: 0,
             guesses: Vec::new(),
             hints: Vec::new(),
+            ends_at: 0,
         }
     }
-    pub fn reset(&mut self, easy_word: &str, hard_word: &str) {
-        self.round_id = 0;
+    pub fn next(
+        &mut self,
+        round_id: u32,
+        drawer_id: u32,
+        easy_word: &str,
+        hard_word: &str,
+    ) {
+        self.round_id = round_id;
         self.phase = Phase::ChooseWord.into();
-        self.drawer = 0;
+        self.drawer = drawer_id;
         self.drawing.clear();
         self.easy_word.clear();
         self.easy_word.push_str(easy_word);
@@ -48,15 +55,15 @@ impl Round {
 }
 
 impl Game {
-    pub fn new(easy_word: &'static str, hard_word: &'static str) -> Self {
+    pub fn new() -> Self {
         Self {
             players: HashMap::new(),
-            round: Some(Round::new(0, 0, easy_word, hard_word)),
+            round: None,
         }
     }
-    pub fn reset(&mut self, easy_word: &'static str, hard_word: &'static str) {
+    pub fn reset(&mut self) {
         self.players.clear();
-        self.round.as_mut().unwrap().reset(easy_word, hard_word);
+        self.round = None;
     }
     // true if no players, or all players disconnected
     pub fn empty(&self) -> bool {
@@ -173,30 +180,45 @@ impl Game {
                 }
             }
             SeType::PlayerChooseWord(choose_word) => {
-                let round = self.round.as_mut().unwrap();
-                if round.word_choice != choose_word.choice {
-                    round.word_choice = choose_word.choice;
-                    send_buf.push(event);
+                if let Some(round) = &mut self.round {
+                    if round.drawer == choose_word.drawer {
+                        if round.word_choice != choose_word.choice {
+                            round.word_choice = choose_word.choice;
+                            send_buf.push(event);
+                        }
+                    }
                 }
             }
             SeType::PlayerGuessWord(guess_word) => {
-                let round = self.round.as_mut().unwrap();
-                round.guesses.push(Guess {
-                    guesser: guess_word.guesser,
-                    guess: guess_word.guess.clone(),
-                    after_draw_ops: guess_word.after_draw_ops,
-                });
-                send_buf.push(event);
+                if let Some(round) = &mut self.round {
+                    // don't need to check if guesser is in
+                    // players map because clients cannot
+                    // effect this field, it's only set on
+                    // the server
+                    if round.drawer != guess_word.guesser {
+                        round.guesses.push(Guess {
+                            guesser: guess_word.guesser,
+                            guess: guess_word.guess.clone(),
+                            after_draw_ops: guess_word.after_draw_ops,
+                        });
+                        send_buf.push(event);
+                    }
+                }
             }
             SeType::NewRound(new_round) => {
                 // not efficient impl but this
                 // only runs during testing,
                 // shouldn't ever run on prod
                 if let Some(round) = &mut self.round {
-                    round.reset(&new_round.easy_word, &new_round.hard_word);
-                    round.round_id = new_round.round_id;
-                    round.drawer = new_round.drawer;
-                    send_buf.push(event);
+                    if new_round.round_id != round.round_id {
+                        round.next(
+                            new_round.round_id,
+                            new_round.drawer,
+                            &new_round.easy_word,
+                            &new_round.hard_word,
+                        );
+                        send_buf.push(event);
+                    }
                 }
             }
             SeType::SetGame(set_game) => {

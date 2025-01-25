@@ -26,3 +26,7 @@ drawduel2:
     -   axum (tokio + tower + tungstenite)
 -   messages
     -   protobuf
+
+## contributing
+
+need nvmrc, protoc, and rustup

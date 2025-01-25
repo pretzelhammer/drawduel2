@@ -28,6 +28,8 @@ pub struct Round {
     pub round_id: u32,
     #[prost(enumeration="Phase", tag="10")]
     pub phase: i32,
+    #[prost(uint64, tag="12")]
+    pub ends_at: u64,
     #[prost(uint32, tag="2")]
     pub drawer: u32,
     #[prost(message, repeated, tag="3")]

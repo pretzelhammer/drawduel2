@@ -6,7 +6,7 @@ package generated;
 
 message Game {
     map<uint32, Player> players = 1;
-    Round round = 2;
+    optional Round round = 2;
 }
 
 message Player {
@@ -20,6 +20,7 @@ message Player {
 message Round {
     uint32 round_id = 1;
     Phase phase = 10;
+    uint64 ends_at = 12;
     uint32 drawer = 2;
     repeated DrawOperation drawing = 3;
     string easy_word = 4;

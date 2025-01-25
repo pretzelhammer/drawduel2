@@ -1,27 +1,31 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* @ts-ignore */
-
-import { describe, test, expect, beforeAll } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import {
+    ColorType,
     Game,
+    Phase,
     ServerEvent,
     ServerEvents,
+    WordChoice,
     advanceAllGame,
 } from 'src/game/mini/engine';
 import { server_advance } from 'tests/wasm/drawduel_wasm';
 
-// import isString from 'lodash-es/isString';
-// function log(...args: any[]) {
-//     for (let arg of args) {
-//         if (isString(arg)) {
-//             console.log(arg);
-//         } else {
-//             console.dir(arg, { depth: null, colors: true });
-//         }
-//     }
-// }
+import isString from 'lodash-es/isString';
+function log(...args: any[]) {
+    for (let arg of args) {
+        if (isString(arg)) {
+            console.log(arg);
+        } else {
+            console.dir(arg, { depth: null, colors: true });
+        }
+    }
+}
 
 function expectServerClientGamesInSync(serverEvent: ServerEvent, game: Game) {
+    // log({
+    //     game,
+    //     sourceServerEvent: serverEvent,
+    // });
     let next_state = server_advance(
         ServerEvent.encode(serverEvent).finish(),
         Game.encode(game).finish(),
@@ -32,41 +36,73 @@ function expectServerClientGamesInSync(serverEvent: ServerEvent, game: Game) {
         );
         let serverGame = Game.decode(new Uint8Array(next_state.next_game));
         let clientGame = advanceAllGame(serverEvents, game);
-        // log(clientGame, serverGame);
+        // log({
+        //     returnedServerEvents: serverEvents,
+        //     clientGame,
+        //     serverGame,
+        // });
         expect(clientGame).toStrictEqual(serverGame);
     }
 }
 
-function newGame() {
-    return Game.create();
+function newRound(): object {
+    return {
+        roundId: 0,
+        phase: Phase.CHOOSE_WORD,
+        drawer: 0,
+        drawing: [],
+        easyWord: 'easy',
+        hardWord: 'hard',
+        wordChoice: WordChoice.EASY,
+        drawingScore: 0,
+        guessingScore: 0,
+        guesses: [],
+        hints: [],
+        endsAt: 0,
+    };
 }
 
-function onePlayerGame() {
+function newGame(): Game {
     return Game.fromPartial({
-        players: {
-            0: {
-                name: 'adam',
-                score: 0,
-                connected: true,
-            },
-        },
+        players: {},
+        // round: newRound(),
     });
 }
 
-function twoPlayerGame() {
+function onePlayerGame(): Game {
     return Game.fromPartial({
         players: {
             0: {
                 name: 'adam',
                 score: 0,
                 connected: true,
+                drawerScore: 0,
+                guesserScore: 0,
+            },
+        },
+        // round: newRound(),
+    });
+}
+
+function twoPlayerGame(): Game {
+    return Game.fromPartial({
+        players: {
+            0: {
+                name: 'adam',
+                score: 0,
+                connected: true,
+                drawerScore: 0,
+                guesserScore: 0,
             },
             1: {
                 name: 'bob',
                 score: 0,
                 connected: true,
+                drawerScore: 0,
+                guesserScore: 0,
             },
         },
+        round: newRound(),
     });
 }
 
@@ -163,6 +199,46 @@ describe(
             expectServerClientGamesInSync(playerIncreaseGuesserScore, game);
         });
 
+        test('player draw op (new game)', () => {
+            let game = newGame();
+            let playerDrawOp = ServerEvent.fromPartial({
+                playerDrawOp: {
+                    id: 0,
+                    drawOp: {
+                        startStroke: {
+                            colorType: ColorType.PRIMARY,
+                            x: 0.5,
+                            y: 0.5,
+                        },
+                    },
+                },
+            });
+            expectServerClientGamesInSync(playerDrawOp, game);
+        });
+
+        test('player choose word (new game)', () => {
+            let game = newGame();
+            let playerChooseWord = ServerEvent.fromPartial({
+                playerChooseWord: {
+                    drawer: 0,
+                    choice: WordChoice.HARD,
+                },
+            });
+            expectServerClientGamesInSync(playerChooseWord, game);
+        });
+
+        test('player incorrect guess word (new game)', () => {
+            let game = newGame();
+            let playerGuessWord = ServerEvent.fromPartial({
+                playerGuessWord: {
+                    guesser: 1,
+                    guess: 'incorrect',
+                    afterDrawOps: 0,
+                },
+            });
+            expectServerClientGamesInSync(playerGuessWord, game);
+        });
+
         // one player
 
         test('player joins (one player)', () => {
@@ -250,6 +326,46 @@ describe(
             expectServerClientGamesInSync(playerIncreaseGuesserScore, game);
         });
 
+        test('player draw op (one player)', () => {
+            let game = onePlayerGame();
+            let playerDrawOp = ServerEvent.fromPartial({
+                playerDrawOp: {
+                    id: 0,
+                    drawOp: {
+                        startStroke: {
+                            colorType: ColorType.PRIMARY,
+                            x: 0.5,
+                            y: 0.5,
+                        },
+                    },
+                },
+            });
+            expectServerClientGamesInSync(playerDrawOp, game);
+        });
+
+        test('player choose word (one player)', () => {
+            let game = onePlayerGame();
+            let playerChooseWord = ServerEvent.fromPartial({
+                playerChooseWord: {
+                    drawer: 0,
+                    choice: WordChoice.HARD,
+                },
+            });
+            expectServerClientGamesInSync(playerChooseWord, game);
+        });
+
+        test('player incorrect guess word (one player)', () => {
+            let game = onePlayerGame();
+            let playerGuessWord = ServerEvent.fromPartial({
+                playerGuessWord: {
+                    guesser: 1,
+                    guess: 'incorrect',
+                    afterDrawOps: 0,
+                },
+            });
+            expectServerClientGamesInSync(playerGuessWord, game);
+        });
+
         // two player
 
         test('player joins (two player)', () => {
@@ -335,6 +451,46 @@ describe(
                 },
             });
             expectServerClientGamesInSync(playerIncreaseGuesserScore, game);
+        });
+
+        test('player draw op (two player)', () => {
+            let game = twoPlayerGame();
+            let playerDrawOp = ServerEvent.fromPartial({
+                playerDrawOp: {
+                    id: 0,
+                    drawOp: {
+                        startStroke: {
+                            colorType: ColorType.PRIMARY,
+                            x: 0.5,
+                            y: 0.5,
+                        },
+                    },
+                },
+            });
+            expectServerClientGamesInSync(playerDrawOp, game);
+        });
+
+        test('player choose word (two player)', () => {
+            let game = twoPlayerGame();
+            let playerChooseWord = ServerEvent.fromPartial({
+                playerChooseWord: {
+                    drawer: 0,
+                    choice: WordChoice.HARD,
+                },
+            });
+            expectServerClientGamesInSync(playerChooseWord, game);
+        });
+
+        test('player incorrect guess word (two player)', () => {
+            let game = twoPlayerGame();
+            let playerGuessWord = ServerEvent.fromPartial({
+                playerGuessWord: {
+                    guesser: 1,
+                    guess: 'incorrect',
+                    afterDrawOps: 0,
+                },
+            });
+            expectServerClientGamesInSync(playerGuessWord, game);
         });
     },
 );

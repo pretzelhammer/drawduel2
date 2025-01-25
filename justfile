@@ -17,6 +17,8 @@ build-proto-ts:
 	protoc --plugin=./frontend/node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./frontend/src/game/full/engine --proto_path=./agnostic game.proto
 	protoc --plugin=./frontend/node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./frontend/src/game/mini/engine --proto_path=./agnostic mini_game.proto
 
+# --ts_proto_opt=noDefaultsForOptionals=true
+
 build-proto: build-proto-rs build-proto-ts
 
 build-wasm:

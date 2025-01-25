@@ -45,6 +45,7 @@ fn wasm_advance(
     current_game: &[u8],
 ) -> Result<JsValue, JsError> {
     let game = Game::decode(current_game)?;
+    // println!("{:?}", game); // doesn't work?
     match advance(server_event, game)? {
         Some(next_state) => {
             let mut serialized_events = Vec::new();

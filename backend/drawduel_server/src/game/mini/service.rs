@@ -256,7 +256,7 @@ impl SerialIds {
 async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
     let mut player_ids = SerialIds::new();
     let mut round_ids = SerialIds::new();
-    let mut game = Game::new(random_easy_word(), random_hard_word());
+    let mut game = Game::new();
     let mut room_state = RoomState::new();
     let mut events: Vec<ServerEvent> = Vec::with_capacity(4);
     loop {
@@ -401,7 +401,7 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                     events = reused_events;
                     if let Err(err) = game_tx.send(serialized_msg) {
                         // if we're here it means all players have disconnected
-                        game.reset(random_easy_word(), random_hard_word());
+                        game.reset();
                         room_state.reset();
                     }
                 }
