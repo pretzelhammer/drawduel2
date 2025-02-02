@@ -13,13 +13,13 @@ pub struct Game {
 pub struct Player {
     #[prost(string, tag="1")]
     pub name: ::prost::alloc::string::String,
-    #[prost(uint32, tag="2")]
-    pub score: u32,
     #[prost(uint32, tag="3")]
-    pub drawer_score: u32,
+    pub draw_score: u32,
     #[prost(uint32, tag="4")]
-    pub guesser_score: u32,
-    #[prost(bool, tag="5")]
+    pub guess_score: u32,
+    #[prost(uint32, tag="5")]
+    pub round_score: u32,
+    #[prost(bool, tag="6")]
     pub connected: bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -29,21 +29,21 @@ pub struct Round {
     #[prost(enumeration="Phase", tag="10")]
     pub phase: i32,
     #[prost(uint64, tag="12")]
-    pub ends_at: u64,
+    pub phase_ends_at: u64,
     #[prost(uint32, tag="2")]
-    pub drawer: u32,
+    pub drawer_id: u32,
     #[prost(message, repeated, tag="3")]
-    pub drawing: ::prost::alloc::vec::Vec<DrawOperation>,
-    #[prost(string, tag="4")]
-    pub easy_word: ::prost::alloc::string::String,
-    #[prost(string, tag="5")]
-    pub hard_word: ::prost::alloc::string::String,
+    pub draw_ops: ::prost::alloc::vec::Vec<DrawOp>,
+    #[prost(uint32, tag="4")]
+    pub easy_word: u32,
+    #[prost(uint32, tag="5")]
+    pub hard_word: u32,
     #[prost(enumeration="WordChoice", tag="11")]
     pub word_choice: i32,
     #[prost(uint32, tag="6")]
-    pub drawing_score: u32,
+    pub draw_score: u32,
     #[prost(uint32, tag="7")]
-    pub guessing_score: u32,
+    pub guess_score: u32,
     #[prost(message, repeated, tag="8")]
     pub guesses: ::prost::alloc::vec::Vec<Guess>,
     #[prost(message, repeated, tag="9")]
@@ -52,11 +52,29 @@ pub struct Round {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Guess {
     #[prost(uint32, tag="1")]
-    pub guesser: u32,
-    #[prost(string, tag="2")]
-    pub guess: ::prost::alloc::string::String,
-    #[prost(uint32, tag="3")]
+    pub guesser_id: u32,
+    #[prost(uint32, tag="4")]
     pub after_draw_ops: u32,
+    #[prost(oneof="guess::GuessType", tags="2, 3")]
+    pub guess_type: ::core::option::Option<guess::GuessType>,
+}
+/// Nested message and enum types in `Guess`.
+pub mod guess {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum GuessType {
+        #[prost(message, tag="2")]
+        IncorrectGuess(super::IncorrectGuess),
+        #[prost(message, tag="3")]
+        CorrectGuess(super::CorrectGuess),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct IncorrectGuess {
+    #[prost(string, tag="1")]
+    pub guess: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CorrectGuess {
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Hint {
@@ -84,12 +102,12 @@ pub struct RevealLetter {
     pub index: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DrawOperation {
-    #[prost(oneof="draw_operation::DoType", tags="1, 2, 3, 4, 5, 6")]
-    pub do_type: ::core::option::Option<draw_operation::DoType>,
+pub struct DrawOp {
+    #[prost(oneof="draw_op::DoType", tags="1, 2, 3, 4, 5, 6")]
+    pub do_type: ::core::option::Option<draw_op::DoType>,
 }
-/// Nested message and enum types in `DrawOperation`.
-pub mod draw_operation {
+/// Nested message and enum types in `DrawOp`.
+pub mod draw_op {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum DoType {
         #[prost(message, tag="1")]
@@ -161,82 +179,107 @@ pub struct SeError {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SePlayerJoin {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub player_id: u32,
     #[prost(string, tag="2")]
     pub name: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SePlayerLeave {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub player_id: u32,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SePlayerConnect {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub player_id: u32,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SePlayerDisconnect {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub player_id: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SePlayerRename {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub player_id: u32,
     #[prost(string, tag="2")]
     pub name: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct SePlayerIncreaseScore {
+pub struct SePlayerIncRoundScore {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub player_id: u32,
     #[prost(uint32, tag="2")]
-    pub increase_by: u32,
+    pub inc_by: u32,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct SePlayerIncreaseDrawerScore {
+pub struct SePlayerIncDrawScore {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub drawer_id: u32,
     #[prost(uint32, tag="2")]
-    pub increase_by: u32,
+    pub inc_by: u32,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct SePlayerIncreaseGuesserScore {
+pub struct SePlayerIncGuessScore {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub guesser_id: u32,
     #[prost(uint32, tag="2")]
-    pub increase_by: u32,
+    pub inc_by: u32,
+}
+/// round_id not necessary as it always
+/// refers to the current round
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SeRoundIncDrawScore {
+    #[prost(uint32, tag="1")]
+    pub inc_by: u32,
+}
+/// round_id not necessary as it always
+/// refers to the current round
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SeRoundIncGuessScore {
+    #[prost(uint32, tag="1")]
+    pub inc_by: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SePlayerDrawOperation {
+pub struct SePlayerDrawOp {
     #[prost(uint32, tag="1")]
-    pub id: u32,
+    pub drawer_id: u32,
     #[prost(message, optional, tag="2")]
-    pub draw_op: ::core::option::Option<DrawOperation>,
+    pub draw_op: ::core::option::Option<DrawOp>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SeNewRound {
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SeRoundNew {
     #[prost(uint32, tag="1")]
     pub round_id: u32,
     #[prost(uint32, tag="2")]
-    pub drawer: u32,
-    #[prost(string, tag="3")]
-    pub easy_word: ::prost::alloc::string::String,
-    #[prost(string, tag="4")]
-    pub hard_word: ::prost::alloc::string::String,
+    pub drawer_id: u32,
+    #[prost(uint32, tag="3")]
+    pub easy_word: u32,
+    #[prost(uint32, tag="4")]
+    pub hard_word: u32,
+    #[prost(enumeration="Phase", tag="5")]
+    pub starting_phase: i32,
+    #[prost(uint64, tag="6")]
+    pub phase_ends_at: u64,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SeRoundChangePhase {
+    #[prost(enumeration="Phase", tag="1")]
+    pub phase: i32,
+    #[prost(uint64, tag="2")]
+    pub phase_ends_at: u64,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SePlayerChooseWord {
     #[prost(uint32, tag="1")]
-    pub drawer: u32,
+    pub drawer_id: u32,
     #[prost(enumeration="WordChoice", tag="2")]
     pub choice: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SePlayerGuessWord {
     #[prost(uint32, tag="1")]
-    pub guesser: u32,
+    pub guesser_id: u32,
     #[prost(string, tag="2")]
     pub guess: ::prost::alloc::string::String,
     #[prost(uint32, tag="3")]
@@ -245,13 +288,13 @@ pub struct SePlayerGuessWord {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SePlayerLikeRound {
     #[prost(uint32, tag="1")]
-    pub liker: u32,
+    pub player_id: u32,
     #[prost(uint32, tag="2")]
     pub round_id: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerEvent {
-    #[prost(oneof="server_event::SeType", tags="1, 2, 3, 4, 10, 11, 5, 6, 7, 8, 9, 12, 13, 14, 15")]
+    #[prost(oneof="server_event::SeType", tags="1, 2, 3, 4, 10, 11, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18")]
     pub se_type: ::core::option::Option<server_event::SeType>,
 }
 /// Nested message and enum types in `ServerEvent`.
@@ -265,11 +308,11 @@ pub mod server_event {
         #[prost(message, tag="3")]
         PlayerRename(super::SePlayerRename),
         #[prost(message, tag="4")]
-        PlayerIncreaseScore(super::SePlayerIncreaseScore),
+        PlayerIncRoundScore(super::SePlayerIncRoundScore),
         #[prost(message, tag="10")]
-        PlayerIncreaseDrawerScore(super::SePlayerIncreaseDrawerScore),
+        PlayerIncDrawScore(super::SePlayerIncDrawScore),
         #[prost(message, tag="11")]
-        PlayerIncreaseGuesserScore(super::SePlayerIncreaseGuesserScore),
+        PlayerIncGuessScore(super::SePlayerIncGuessScore),
         #[prost(message, tag="5")]
         SetGame(super::SeSetGame),
         #[prost(message, tag="6")]
@@ -279,15 +322,21 @@ pub mod server_event {
         #[prost(message, tag="8")]
         PlayerDisconnect(super::SePlayerDisconnect),
         #[prost(message, tag="9")]
-        PlayerDrawOp(super::SePlayerDrawOperation),
+        PlayerDrawOp(super::SePlayerDrawOp),
         #[prost(message, tag="12")]
-        NewRound(super::SeNewRound),
+        NewRound(super::SeRoundNew),
         #[prost(message, tag="13")]
         PlayerChooseWord(super::SePlayerChooseWord),
         #[prost(message, tag="14")]
         PlayerGuessWord(super::SePlayerGuessWord),
         #[prost(message, tag="15")]
         PlayerLikeRound(super::SePlayerLikeRound),
+        #[prost(message, tag="16")]
+        RoundIncDrawScore(super::SeRoundIncDrawScore),
+        #[prost(message, tag="17")]
+        RoundIncGuessScore(super::SeRoundIncGuessScore),
+        #[prost(message, tag="18")]
+        RoundChangePhase(super::SeRoundChangePhase),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -322,9 +371,9 @@ pub struct CeLikeRound {
     pub round_id: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CeDrawOperation {
+pub struct CeDrawOp {
     #[prost(message, optional, tag="1")]
-    pub draw_op: ::core::option::Option<DrawOperation>,
+    pub draw_op: ::core::option::Option<DrawOp>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientEvent {
@@ -344,9 +393,13 @@ pub mod client_event {
         #[prost(message, tag="4")]
         LikeRound(super::CeLikeRound),
         #[prost(message, tag="5")]
-        DrawOp(super::CeDrawOperation),
+        DrawOp(super::CeDrawOp),
     }
 }
+/// choose word 10 secs
+/// pre play 5 secs
+/// play 45 - 60 secs
+/// post play 5 secs
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Phase {

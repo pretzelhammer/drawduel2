@@ -203,7 +203,6 @@ target
 *.pdb
 
 ### wasm-pack ###
-bin
 pkg
 wasm-pack.log
 

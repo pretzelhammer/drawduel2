@@ -11,21 +11,114 @@ use axum::{
 };
 use drawduel_engine::game::mini::*;
 use hyper::StatusCode;
+use pin_project::pin_project;
 use prost::Message as ProstMessage;
 use serde::Deserialize;
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::future::Future;
 use std::net::SocketAddr;
+use std::pin::{pin, Pin};
+use std::task::{Context, Poll};
+use std::time::SystemTime;
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
+use tokio::time::{sleep_until, Instant, Sleep};
 use tokio::{
     sync::{broadcast, mpsc, oneshot},
     time::{self},
 };
 
-use crate::game::words::{random_easy_word, random_hard_word};
+use crate::game::mini::{random_easy_word, random_hard_word};
+
+fn sleep_until_epoch_ms(epoch_ms: u64) -> Result<Sleep, ()> {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_millis() as u64;
+
+    if epoch_ms <= now {
+        // target time is before now
+        return Err(());
+    }
+
+    let delay = Duration::from_millis(epoch_ms - now);
+    let target_time = Instant::now() + delay;
+
+    Ok(sleep_until(target_time))
+}
+
+struct TimedEventTimer {
+    sleep: Pin<Box<Sleep>>,
+    timed_event: TimedEvent,
+}
+
+impl PartialEq for TimedEventTimer {
+    fn eq(&self, other: &Self) -> bool {
+        self.timed_event.times_out_at == other.timed_event.times_out_at
+    }
+}
+
+impl PartialOrd for TimedEventTimer {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl Eq for TimedEventTimer {}
+
+impl Ord for TimedEventTimer {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other
+            .timed_event
+            .times_out_at
+            .cmp(&self.timed_event.times_out_at)
+    }
+}
+
+struct TimedEventQueue {
+    heap: BinaryHeap<TimedEventTimer>,
+}
+
+impl TimedEventQueue {
+    fn new() -> Self {
+        Self {
+            heap: BinaryHeap::new(),
+        }
+    }
+
+    /// Add a new sleep future to the queue.
+    fn add_sleep(&mut self, duration: Duration, timed_event: TimedEvent) {
+        let instant = Instant::now() + duration;
+        let sleep = Box::pin(sleep_until(instant));
+        self.heap.push(TimedEventTimer { sleep, timed_event });
+    }
+}
+
+impl Future for TimedEventQueue {
+    type Output = TimedEvent;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        if let Some(mut event_timer) = self.heap.pop() {
+            match event_timer.sleep.as_mut().poll(cx) {
+                Poll::Ready(_) => Poll::Ready(event_timer.timed_event),
+                Poll::Pending => {
+                    self.heap.push(event_timer);
+                    Poll::Pending
+                }
+            }
+        } else {
+            Poll::Pending
+        }
+    }
+}
 
 type PlayerId = u32;
 type SerializedMsg = Bytes;
@@ -282,7 +375,7 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                     // let other players know this player has reconnected
                     let player_connect = ServerEvent {
                         se_type: Some(SeType::PlayerConnect(SePlayerConnect {
-                            id: player_id,
+                            player_id: player_id,
                         })),
                     };
 
@@ -324,7 +417,7 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
                         .unwrap_or_else(|| format!("player{new_player_id:02}"));
                     let player_join = ServerEvent {
                         se_type: Some(SeType::PlayerJoin(SePlayerJoin {
-                            id: new_player_id,
+                            player_id: new_player_id,
                             name: player_name,
                         })),
                     };
@@ -390,7 +483,9 @@ async fn room_manager(game_tx: GameTx, mut room_rx: RoomRx) {
             RoomEvent::ClientDisconnect { player_id } => {
                 let server_event = ServerEvent {
                     se_type: Some(SeType::PlayerDisconnect(
-                        SePlayerDisconnect { id: player_id },
+                        SePlayerDisconnect {
+                            player_id: player_id,
+                        },
                     )),
                 };
                 game.advance(server_event, &mut events);

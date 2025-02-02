@@ -11,5 +11,5 @@ name = "normalize_words"
 path = "src/bin/normalize_words.rs"
 
 [[bin]]
-name = "generate_words"
-path = "src/bin/generate_words.rs"
+name = "build_words"
+path = "src/bin/build_words.rs"
